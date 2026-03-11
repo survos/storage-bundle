@@ -1,0 +1,48 @@
+{% extends "base.html.twig" %}
+
+{% block body %}
+
+<div>
+    {% set filePath = file.name %}
+    {% set lowerPath = filePath|lower %}
+    {% set isPdf = lowerPath ends with '.pdf' %}
+    {% set isImage = (lowerPath ends with '.jpg')
+        or (lowerPath ends with '.jpeg')
+        or (lowerPath ends with '.webp')
+        or (lowerPath ends with '.png')
+        or (lowerPath ends with '.gif') %}
+    <h3>{{ filePath }}</h3>
+    <div class="mb-2 small">
+        {% if signed %}
+            <strong>URL mode:</strong> signed (expires in ~60m)
+            <a class="ms-2" href="{{ path('survos_storage_view', {zoneId: zoneId, path: filePath, signed: 0}) }}">Use public URL</a>
+        {% else %}
+            <strong>URL mode:</strong> public
+            <a class="ms-2" href="{{ path('survos_storage_view', {zoneId: zoneId, path: filePath, signed: 1}) }}">Use signed URL</a>
+        {% endif %}
+    </div>
+
+    {% if directUrl %}
+        <div class="mb-2">
+            <a href="{{ directUrl }}" target="_blank" rel="noopener noreferrer">Open source object</a>
+        </div>
+        {% if isPdf %}
+            <iframe src="{{ directUrl }}" title="{{ filePath }}" style="width: 100%; height: 70vh; border: 1px solid #ddd;"></iframe>
+        {% elseif isImage %}
+            {% guard filter imgproxy_preset %}
+                {% set thumbUrl = directUrl|imgproxy_preset('storage_thumb') %}
+                {% set previewUrl = directUrl|imgproxy_preset('storage_preview') %}
+                <a href="{{ previewUrl }}" target="_blank" rel="noopener noreferrer">
+                    <img src="{{ thumbUrl }}" alt="{{ filePath }}" style="max-width: 320px; max-height: 320px; object-fit: contain;" loading="lazy">
+                </a>
+            {% else %}
+                <div class="text-muted small">imgproxy filter unavailable; using direct object link only.</div>
+            {% endguard %}
+        {% else %}
+            <div class="text-muted small">No inline preview for this file type.</div>
+        {% endif %}
+    {% else %}
+        <div class="text-muted small">Unable to generate object URL for this file.</div>
+    {% endif %}
+</div>
+{% endblock %}

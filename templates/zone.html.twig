@@ -1,0 +1,81 @@
+{% extends "base.html.twig" %}
+
+{% block body %}
+    <h2>Root {{ zoneId }} / {{ path }}</h2>
+    <div class="mb-2 small">
+        {% if signed %}
+            <strong>URL mode:</strong> signed (expires in ~60m)
+            <a class="ms-2" href="{{ path('survos_storage_zone', {zoneId: zoneId, path: path, deep: deep, addMeta: addMeta, signed: 0}) }}">Use public URLs</a>
+        {% else %}
+            <strong>URL mode:</strong> public
+            <a class="ms-2" href="{{ path('survos_storage_zone', {zoneId: zoneId, path: path, deep: deep, addMeta: addMeta, signed: 1}) }}">Use signed URLs</a>
+        {% endif %}
+    </div>
+    {{ jsonLength }} for JSON, {{ data|length }} objects (dir/file)
+
+    {% set columns = [
+        'type',
+        'path',
+        'lastModified',
+        'fileSize',
+        'extraMetadata',
+    ] %}
+    <twig:simple_datatables
+            perPage="20"
+            :caller="_self"
+            :columns="columns"
+            :data="files"
+    >
+
+        <twig:block name="type">
+            {{ row.type }} {{ row.isFile and row.mimeType ? row.mimeType }}
+            {{ row.visibility }}
+        </twig:block>
+
+        <twig:block name="lastModified">
+            {{ row.lastModified ? row.lastModified|ago }}
+        </twig:block>
+
+        <twig:block name="fileSize">
+            {{ row.fileSize|default(false) ? (row.fileSize / (1024 * 1024))|number_format(1) }}M
+        </twig:block>
+
+        <twig:block name="path">
+            {% set filePath = row.path %}
+            {% set directUrl = (signed ? signedUrls[filePath] ?? null : publicUrls[filePath] ?? null) %}
+            {% set lowerPath = filePath|lower %}
+            {% set isImage = (lowerPath ends with '.jpg')
+                or (lowerPath ends with '.jpeg')
+                or (lowerPath ends with '.webp')
+                or (lowerPath ends with '.png')
+                or (lowerPath ends with '.gif') %}
+
+            {% if row.type == 'file' and isImage and directUrl %}
+                {% guard filter imgproxy_preset %}
+                    {% set thumbUrl = directUrl|imgproxy_preset('storage_thumb') %}
+                    {% set previewUrl = directUrl|imgproxy_preset('storage_preview') %}
+                    <a href="{{ previewUrl }}" target="_blank" rel="noopener noreferrer">
+                        <img src="{{ thumbUrl }}" alt="{{ filePath }}" style="max-width: 96px; max-height: 96px; object-fit: contain;" loading="lazy" />
+                    </a>
+                {% endguard %}
+            {% endif %}
+
+            <a href="{{ path(row.type == 'dir' ? 'survos_storage_zone' : 'survos_storage_view', {zoneId: zoneId, path: filePath}) }}">
+                {{ filePath }}
+            </a>
+            {% if row.type == 'file' and directUrl %}
+                <a href="{{ directUrl }}" target="_blank" rel="noopener noreferrer" class="small ms-2">open</a>
+                <span class="small text-muted ms-1">{{ signed ? 'signed' : 'public' }}</span>
+            {% endif %}
+        </twig:block>
+
+        <twig:block name="extraMetadata">
+            {{ row.extraMetadata ? row.extraMetadata|json_encode }}
+        </twig:block>
+
+        <twig:block name="Length">
+            {{ row.IsDirectory ? '(dir)' : (row.Length)|number_format(0) }}
+        </twig:block>
+
+    </twig:simple_datatables>
+{% endblock %}

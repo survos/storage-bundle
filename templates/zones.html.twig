@@ -1,0 +1,47 @@
+{% extends "base.html.twig" %}
+
+{% block body %}
+
+    {% for code, zone in zones   %}
+
+        <h2>{{ code }}</h2>
+        <a href="{{ path('survos_storage_zone', {zoneId: code}) }}">
+            {{ code }}
+        </a>
+{#        {{ dump(adapters[code]) }}#}
+{#        {{ dump(zone) }}#}
+    {% endfor %}
+
+    {% set columns = [
+        'code',
+        'class',
+        'adapter',
+    ] %}
+    <twig:simple_datatables
+            perPage="20"
+            :caller="_self"
+            :columns="columns"
+            :data="zones"
+    >
+        <twig:block name="code">
+            <a href="{{ path('survos_storage_zone', {zoneId: idx}) }}">
+                {{ idx }}
+            </a>
+        </twig:block>
+        <twig:block name="class">
+            {% set adapter = adapters[idx] %}
+            {{ adapter.class }}
+        </twig:block>
+
+        <twig:block name="adapter">
+            {% set adapter = adapters[idx] %}
+            {{ adapter.bucket??'' }}
+{#            {{ dump(adapter) }}#}
+{#            {{ row.rootLocation| }}#}
+{#            <a href="{{ path('survos_storage_zone', {id: row.Id, zoneName: row.Name}) }}">#}
+{#                {{ row.Name }}#}
+{#            </a>#}
+        </twig:block>
+
+    </twig:simple_datatables>
+{% endblock %}

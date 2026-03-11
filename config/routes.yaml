@@ -1,0 +1,5 @@
+survos_storage:
+  type: attribute
+  resource:
+    path: '@SurvosStorageBundle/src/Controller/'
+    namespace: Survos\StorageBundle\Controller

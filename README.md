@@ -10,6 +10,14 @@ symfony new storage-demo --webapp && cd storage-demo
 composer require survos/storage-bundle
 ```
 
+Optional thumbnail support:
+
+```bash
+composer require mezcalito/imgproxy-bundle
+```
+
+Without imgproxy, the bundle still works normally and falls back to direct object links instead of generated image thumbnails/previews.
+
 Configure Flysystem, including the relevant env vars if using something besides local
 
 ```yaml
@@ -88,4 +96,3 @@ bin/console storage:list
 
 
 ```
-

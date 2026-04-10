@@ -17,8 +17,7 @@
         "zenstruck/bytes": "^1.0",
         "ext-zip": "*",
         "doctrine/orm": "^3.6",
-        "doctrine/doctrine-bundle": "^3.2",
-        "mezcalito/imgproxy-bundle": "^0.5.2"
+        "doctrine/doctrine-bundle": "^3.2"
     },
     "require-dev": {
         "league/flysystem-aws-s3-v3": "^3.29",
@@ -31,7 +30,7 @@
         "survos/simple-datatables-bundle": "^2.0",
         "symfony/yaml": "^7.4||^8.0",
         "symfony/http-client": "^7.4||^8.0",
-        "phpunit/phpunit": "^12",
+        "phpunit/phpunit": "^13",
         "symfony/messenger": "^7.4||^8.0",
         "symfony/console": "^7.4||^8.0",
         "phpstan/phpstan-symfony": "^2.0",
@@ -48,6 +47,7 @@
         }
     },
     "suggest": {
+        "mezcalito/imgproxy-bundle": "optional thumbnail and preview rendering for image objects",
         "survos/simple-datatables-bundle": "searchable/sortable tables when browsing"
     }
 }

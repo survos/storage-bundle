@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Survos\StorageBundle;
 
 use League\FlysystemBundle\FlysystemBundle;
@@ -10,6 +12,7 @@ use Survos\StorageBundle\Command\StorageListCommand;
 use Survos\StorageBundle\Command\StorageDownloadCommand;
 use Survos\StorageBundle\Command\StorageUploadCommand;
 use Survos\StorageBundle\Controller\StorageController;
+use Survos\StorageBundle\MessageHandler\DebugMessageHandler;
 use Survos\StorageBundle\Service\StorageService;
 use Survos\StorageBundle\Twig\TwigExtension;
 use Survos\SimpleDatatables\SurvosSimpleDatatablesBundle;
@@ -89,6 +92,10 @@ class SurvosStorageBundle extends AbstractBundle implements CompilerPassInterfac
         $builder->autowire(\Survos\StorageBundle\MessageHandler\DirectoryListingMessageHandler::class)
             ->setAutoconfigured(true)
             ->addTag('messenger.message_handler');
+        $builder->autowire(DebugMessageHandler::class)
+            ->setArgument('$debug', $config['debug'] ?? false)
+            ->setAutoconfigured(true)
+            ->addTag('messenger.message_handler');
 
 
 //        // twig classes, for storage_url ?
@@ -104,6 +111,7 @@ class SurvosStorageBundle extends AbstractBundle implements CompilerPassInterfac
         $rootNode
             ->children()
                 ->booleanNode('enabled')->defaultTrue()->end()
+                ->booleanNode('debug')->defaultFalse()->end()
             ->end();
 
     }

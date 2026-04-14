@@ -95,7 +95,12 @@ final class PopulateCommand
                 'storage' => $storage,
             ]) as $node) {
                 $stamps = [];
-                $message = new DirectoryListingMessage($zoneId, $node->type, $node->path);
+                $message = new DirectoryListingMessage(
+                    $zoneId,
+                    $node->type,
+                    $node->path,
+                    context: [DirectoryListingMessage::CONTEXT_VERBOSITY => $io->getVerbosity()],
+                );
                 if ($sync) {
                     $stamps[] = new TransportNamesStamp(['sync']);
                 }

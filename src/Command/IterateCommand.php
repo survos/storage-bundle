@@ -1,31 +1,27 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Survos\StorageBundle\Command;
 
-use League\Flysystem\DirectoryAttributes;
-use Survos\StorageBundle\Event\DirectoryListingEvent;
+use Survos\StorageBundle\Entity\StorageNode;
 use Survos\StorageBundle\Message\DirectoryListingMessage;
 use Survos\StorageBundle\Service\StorageService;
 use Symfony\Component\Console\Attribute\Argument;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Messenger\MessageBusInterface;
-use Zenstruck\Bytes;
 
 #[AsCommand('storage:iterate', 'iterate and dispatch an event though storage directories')]
-final class IterateCommand extends Command
+final class IterateCommand
 {
 
     public function __construct(
         private readonly StorageService $storageService,
         private MessageBusInterface $messageBus,
-    )
-    {
-        parent::__construct();
-    }
+    ) {}
 
     public function __invoke(
         SymfonyStyle                                                                                          $io,
@@ -39,15 +35,19 @@ final class IterateCommand extends Command
         if (!$dispatch) {
             $io->warning('use --dispatch to do something besides list');
         }
-        $table = new Table($io);
-        $storage = $this->storageService->getZone($zoneId);
+        $this->storageService->getZone($zoneId);
 
         if ($dispatch) {
-            $message = new DirectoryListingMessage($zoneId, 'dir', $path);
+            $message = new DirectoryListingMessage(
+                $zoneId,
+                StorageNode::TYPE_DIR,
+                $path,
+                context: [DirectoryListingMessage::CONTEXT_VERBOSITY => $io->getVerbosity()],
+            );
             $this->messageBus->dispatch($message);
             $io->success("$zoneId $path dispatched");
         }
-        return self::SUCCESS;
+        return Command::SUCCESS;
     }
 
 }

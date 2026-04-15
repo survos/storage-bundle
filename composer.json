@@ -17,7 +17,9 @@
         "zenstruck/bytes": "^1.0",
         "ext-zip": "*",
         "doctrine/orm": "^3.6",
-        "doctrine/doctrine-bundle": "^3.2"
+        "doctrine/doctrine-bundle": "^3.2",
+        "survos/jsonl-bundle": "*",
+        "symfony/string": "^7.4||^8.0"
     },
     "require-dev": {
         "league/flysystem-aws-s3-v3": "^3.29",

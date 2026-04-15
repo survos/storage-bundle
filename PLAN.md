@@ -129,3 +129,86 @@ Current conclusion:
 - `storage-bundle` targets Flysystem zones and cache/persistence
 
 So any merge should be driven by output responsibilities, not just by the fact that both commands recurse directories.
+
+## Unification Direction (decided)
+
+- Delete `import:dir`. Directory traversal lives in `storage-bundle`.
+- Callers that want file access point `storage:iterate` at a zone or at a raw local path/DSN; the bundle wraps raw paths in `LocalFilesystemAdapter` on the fly.
+- `ProbeService` moves into `storage-bundle`. Rationale: probing is about the *contents* of files the bundle walks, and deep probes (ffprobe, docx, fpcalc) can't run without access to file bytes — this is the same domain.
+- `FinderFileInfo` goes away. Flysystem's `FileAttributes` + a small extension helper is enough. We lose `ctime`; acceptable (populate it in the local fast path if ever needed).
+
+## Dynamic Adapters
+
+A `FilesystemResolver` service accepts either:
+- a registered zone id (existing behavior), or
+- a path/DSN (`/abs/path`, `file://...`, later `s3://...`) which it wraps in the appropriate adapter.
+
+This removes the "Flysystem zone vs. local path" fork at the command layer — `storage:iterate` takes one argument and internally resolves an adapter.
+
+## LocalFileResolver
+
+Probes above level 1 require a real path on disk. Rather than forking traversal into "local" and "remote" flavors, introduce a resolver:
+
+```php
+interface LocalFileResolver
+{
+    /**
+     * Return an absolute local path for the given (filesystem, path).
+     * No-op (returns the real path) for LocalFilesystemAdapter.
+     * For remote adapters, streams to tempnam() and returns that path.
+     * The returned Handle releases the temp file on dispose().
+     */
+    public function materialize(FilesystemOperator $fs, string $path): LocalFileHandle;
+}
+
+final class LocalFileHandle
+{
+    public readonly string $path;
+    public function dispose(): void; // no-op for local, unlink for staged
+}
+```
+
+Probe levels, re-framed around what the resolver needs:
+
+- **Level 0** — no bytes. Path + extension only.
+- **Level 1** — stream-friendly. `size`, `mtime` (from `FileAttributes`), `mime_type` via `finfo_buffer()` on first 8 KB of `readStream()`, `xxh3` via `hash_update_stream()` over `readStream()`. Works on any adapter with no staging.
+- **Level 2** — needs a real path. `ffprobe`, `ZipArchive` (docx). Calls `LocalFileResolver::materialize()`, probes, disposes.
+- **Level 3** — needs a real path. `fpcalc` audio fingerprint. Same pattern.
+
+Staging cost is only paid when the adapter is remote *and* the probe level demands it. Local adapters are free.
+
+## .gitignore Support
+
+Flysystem has no equivalent to Finder's gitignore handling. Rather than keep a second (Finder) adapter just for this, implement it as a traversal-time filter that works on any Flysystem adapter:
+
+```php
+final class GitignoreFilter implements TraversalFilter
+{
+    public function __construct(private GitignoreParser $parser) {}
+
+    public function accept(FilesystemOperator $fs, string $path, bool $isDir): bool;
+}
+```
+
+- On entering a directory, the filter reads `.gitignore` via `$fs->read()` if present and pushes a rule set onto a stack.
+- On leaving the directory, it pops.
+- Rules are matched against the path relative to the `.gitignore` location, honoring `!` negations and directory-only patterns.
+- Root `.gitignore` + nested `.gitignore` files both work. `.git/info/exclude` and the global excludes file are ignored by default (can opt in if a local adapter is detected).
+
+Parser: either a small in-repo implementation (gitignore semantics are compact) or a tagged dependency (e.g. a gitignore-matcher package). No shelling out to `git check-ignore`, because that only works for local adapters and we want one code path.
+
+## Migration Steps
+
+1. Add `FilesystemResolver` + accept path/DSN in `storage:iterate`.
+2. Move `ProbeService` (+ `ImportDirFileEvent` → a storage-bundle file event) into storage-bundle. Rewrite it against `FilesystemOperator` + `LocalFileResolver`.
+3. Add `LocalFileResolver` with local fast path and tempnam staging.
+4. Add `GitignoreFilter` + traversal filter hook.
+5. Add a JSONL sink listener (replaces `JsonlWriter` use inside `import:dir`).
+6. Delete `ImportDirCommand`, `FinderFileInfo`, and the Finder-based walk. Keep `Directory`/`File` DTOs if they remain the richer contract; otherwise port their useful fields onto a storage-bundle DTO.
+7. `import-bundle` keeps only import/conversion/enrichment concerns (convert, entities, probe reports, providers).
+
+## Open Questions (revised)
+
+- Do we need `ctime` anywhere? If yes, the local fast path can populate it; the remote path cannot.
+- Which gitignore parser — in-repo or dependency? Prefer a small vetted dependency if one exists; otherwise ~200 lines in-repo.
+- Should JSONL output be a first-class CLI flag on `storage:iterate` (`--jsonl=out.jsonl`) or only via DI-wired listener? Bias: flag, to preserve `import:dir`'s UX for scripts.

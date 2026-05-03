@@ -13,6 +13,7 @@ use Survos\StorageBundle\Command\StorageDownloadCommand;
 use Survos\StorageBundle\Command\StorageUploadCommand;
 use Survos\StorageBundle\Controller\StorageController;
 use Survos\StorageBundle\MessageHandler\DebugMessageHandler;
+use Survos\CoreBundle\Traits\HasConfigurableRoutes;
 use Survos\StorageBundle\Service\StorageService;
 use Survos\StorageBundle\Twig\TwigExtension;
 use Survos\SimpleDatatables\SurvosSimpleDatatablesBundle;
@@ -28,10 +29,12 @@ use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 
 class SurvosStorageBundle extends AbstractBundle implements CompilerPassInterface
 {
+    use HasConfigurableRoutes;
 
     public function build(ContainerBuilder $container): void
     {
         $container->addCompilerPass($this);
+        $this->addRouteLoaderCompilerPass($container);
     }
 
     public function process(ContainerBuilder $container): void
@@ -56,6 +59,9 @@ class SurvosStorageBundle extends AbstractBundle implements CompilerPassInterfac
 
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
+        $this->captureRouteConfig($config);
+        $this->registerRouteLoader($builder);
+
         // get all bundles https://symfony.com/doc/current/bundles/prepend_extension.html
         $bundles = $builder->getParameter('kernel.bundles');
 
@@ -107,13 +113,12 @@ class SurvosStorageBundle extends AbstractBundle implements CompilerPassInterfac
 
     public function configure(DefinitionConfigurator $definition): void
     {
-        $rootNode = $definition->rootNode();
-        $rootNode
-            ->children()
-                ->booleanNode('enabled')->defaultTrue()->end()
-                ->booleanNode('debug')->defaultFalse()->end()
-            ->end();
-
+        $children = $definition->rootNode()->children();
+        $this->addRouteOptions($children, '/storage');
+        $children
+            ->booleanNode('enabled')->defaultTrue()->end()
+            ->booleanNode('debug')->defaultFalse()->end()
+        ->end();
     }
 
     public function prependExtension(ContainerConfigurator $container, ContainerBuilder $builder): void

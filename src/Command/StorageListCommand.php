@@ -17,7 +17,7 @@ use Symfony\Component\Stopwatch\Stopwatch;
 use Zenstruck\Bytes;
 
 #[AsCommand('storage:list', 'list storage files')]
-final class StorageListCommand extends Command
+final class StorageListCommand
 {
 
     public function __construct(
@@ -26,7 +26,6 @@ final class StorageListCommand extends Command
         private ?Stopwatch $stopwatch=null,
     )
     {
-        parent::__construct();
     }
 
     public function __invoke(
@@ -109,7 +108,7 @@ final class StorageListCommand extends Command
 //            dd($file);
 //        }
 
-        return self::SUCCESS;
+        return Command::SUCCESS;
     }
 
     private function renderStorages(SymfonyStyle $io)

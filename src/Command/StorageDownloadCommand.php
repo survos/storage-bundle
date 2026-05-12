@@ -15,14 +15,13 @@ use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use ZipArchive;
 
 #[AsCommand('storage:download', 'download remote storage files')]
-final class StorageDownloadCommand extends Command
+final class StorageDownloadCommand
 {
 
     public function __construct(
         private readonly StorageService $storageService,
         #[Autowire('%kernel.project_dir%')] private $projectDir,
     ) {
-        parent::__construct();
         $this->setHelp(
             <<<END
 # downloads to data/composer.json
@@ -46,7 +45,7 @@ END
         if ($unzip) {
             if (pathinfo($remoteFilename, PATHINFO_EXTENSION) !== 'zip') {
                 $io->error("Only zip files are supported");
-                return self::FAILURE;
+                return Command::FAILURE;
             }
         }
 
@@ -110,7 +109,7 @@ END
             $table->render();
         }
 
-        return self::SUCCESS;
+        return Command::SUCCESS;
     }
 
     private function sanitizeLocalDir(

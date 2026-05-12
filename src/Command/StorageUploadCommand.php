@@ -23,14 +23,13 @@ bin/console storage:upload local/path/filename.zip remote/path/
 
 remote path is required unless a mirror of local
 END)]
-final class StorageUploadCommand extends Command
+final class StorageUploadCommand
 {
 
     public function __construct(
         #[Autowire('%kernel.project_dir%')] private string $projectDir,
         private readonly StorageService $storageService,
     ) {
-        parent::__construct();
     }
 
     /**
@@ -47,12 +46,12 @@ final class StorageUploadCommand extends Command
         $io->info(self::class . ' started');
         if (!file_exists($filename)) {
             $io->error("File $filename does not exist");
-            return self::FAILURE;
+            return Command::FAILURE;
         }
 
         if(!$zip && is_dir($filename)) {
             $io->error("Please specify --zip for directories");
-            return self::FAILURE;
+            return Command::FAILURE;
         }
 
         if($zip) {
@@ -98,7 +97,7 @@ final class StorageUploadCommand extends Command
         // @todo: download dir default, etc.
 
         $io->success($this->getName() . ' finished');
-        return self::SUCCESS;
+        return Command::SUCCESS;
     }
 
     /**

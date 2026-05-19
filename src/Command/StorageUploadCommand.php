@@ -96,7 +96,7 @@ final class StorageUploadCommand
 
         // @todo: download dir default, etc.
 
-        $io->success($this->getName() . ' finished');
+        $io->success('storage:upload finished');
         return Command::SUCCESS;
     }
 

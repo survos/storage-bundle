@@ -14,7 +14,11 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use ZipArchive;
 
-#[AsCommand('storage:download', 'download remote storage files')]
+#[AsCommand('storage:download', 'download remote storage files', help: <<<END
+# downloads to data/composer.json
+bin/console -vvv storage:download data/composer.json
+
+END)]
 final class StorageDownloadCommand
 {
 
@@ -22,13 +26,6 @@ final class StorageDownloadCommand
         private readonly StorageService $storageService,
         #[Autowire('%kernel.project_dir%')] private $projectDir,
     ) {
-        $this->setHelp(
-            <<<END
-# downloads to data/composer.json
-bin/console -vvv storage:download data/composer.json
-
-END
-        );
     }
 
     /**
@@ -92,7 +89,7 @@ END
             $io->info("$downloadPath written with $size bytes");
         }
 
-        $io->success($this->getName() . ': downloaded to ' . realpath($downloadPath));
+        $io->success('storage:download: downloaded to ' . realpath($downloadPath));
 
         if ($unzip) {
             $io->info("Unzipped $downloadPath to $localDirOrFilename");

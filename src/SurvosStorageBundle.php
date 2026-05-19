@@ -13,7 +13,7 @@ use Survos\StorageBundle\Command\StorageDownloadCommand;
 use Survos\StorageBundle\Command\StorageUploadCommand;
 use Survos\StorageBundle\Controller\StorageController;
 use Survos\StorageBundle\MessageHandler\DebugMessageHandler;
-use Survos\CoreBundle\Traits\HasConfigurableRoutes;
+use Survos\Kit\Traits\HasConfigurableRoutes;
 use Survos\StorageBundle\Service\StorageService;
 use Survos\StorageBundle\Twig\TwigExtension;
 use Survos\SimpleDatatables\SurvosSimpleDatatablesBundle;
@@ -25,9 +25,9 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\DependencyInjection\Reference;
-use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
+use Survos\Kit\AbstractSurvosBundle;
 
-class SurvosStorageBundle extends AbstractBundle implements CompilerPassInterface
+class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassInterface
 {
     use HasConfigurableRoutes;
 

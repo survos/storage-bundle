@@ -97,17 +97,6 @@ final class StorageListCommand
         }
         $table->render();
 
-        dd();
-        dump($files);
-        $io->title($zoneId . ' has ' . count($files) . ' files/directories');
-        $table->setHeaders(['name', 'type', 'storage', 'zone']);
-        foreach ($files['dir'] as $dir) {
-
-        }
-//        foreach ($iterator as $file) {
-//            dd($file);
-//        }
-
         return Command::SUCCESS;
     }
 

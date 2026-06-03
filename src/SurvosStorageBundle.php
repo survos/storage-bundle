@@ -46,9 +46,11 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
         // if the order is the same, we can get the adapter by the index.  Ugh.
         $loop = 0;
         foreach ($taggedServices as $id => $attributes) {
-            $service = $container->get($id);
-//            $adapters[$id] = $container->get($id);
-
+            // Note: do NOT call $container->get($id) here. Instantiating a
+            // flysystem storage at compile time forces eager construction of
+            // its adapter (e.g. the AWS S3 client) while %env()% placeholders
+            // are still unresolved, which throws "Region must be a valid RFC
+            // host label". We only need the service id + index.
             $storageService->addMethodCall('addAdapter',
                 [$id, $loop]
             );

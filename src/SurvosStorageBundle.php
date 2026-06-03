@@ -84,6 +84,13 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
             ->addTag('controller.service_arguments')
         ;
 
+        if (class_exists(\Survos\TablerBundle\Event\MenuEvent::class)) {
+            $builder->autowire(\Survos\StorageBundle\Menu\StorageMenuSubscriber::class)
+                ->setAutowired(true)
+                ->setAutoconfigured(true);
+        }
+
+
         foreach ([
             PopulateCommand::class,
             StorageListCommand::class,
@@ -128,6 +135,16 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
         $bundles = $builder->getParameter('kernel.bundles');
         $bundleClasses = array_values($bundles);
         $hasImgproxy = in_array('Mezcalito\\ImgproxyBundle\\ImgproxyBundle', $bundleClasses, true);
+
+        if ($builder->hasExtension('ux_icons')) {
+            $builder->prependExtensionConfig('ux_icons', [
+                'aliases' => [
+                    'database' => 'tabler:database',
+                    'server'   => 'tabler:server',
+                    'folder'   => 'tabler:folder',
+                ],
+            ]);
+        }
 
         if ($hasImgproxy) {
             $builder->prependExtensionConfig('imgproxy', [

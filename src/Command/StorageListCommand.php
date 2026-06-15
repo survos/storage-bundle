@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Survos\StorageBundle\Command;
 
 use League\Flysystem\DirectoryAttributes;

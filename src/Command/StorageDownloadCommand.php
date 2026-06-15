@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Survos\StorageBundle\Command;
 
 use Exception;
@@ -84,7 +86,7 @@ final class StorageDownloadCommand
 
 
             $ret = $this->storageService->downloadFile($remoteShortName, $remotePath, $zoneName);
-            file_put_contents($downloadPath, $ret->getContents());
+            file_put_contents($downloadPath, $ret);
             $size = filesize($downloadPath);
             $io->info("$downloadPath written with $size bytes");
         }

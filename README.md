@@ -13,7 +13,7 @@ composer require survos/storage-bundle
 Optional thumbnail support:
 
 ```bash
-composer require mezcalito/imgproxy-bundle
+composer require survos/imgproxy-bundle
 ```
 
 Without imgproxy, the bundle still works normally and falls back to direct object links instead of generated image thumbnails/previews.
@@ -47,7 +47,7 @@ when@dev:
 ```bash
 symfony new storage-demo --webapp && cd storage-demo
 composer require survos/storage-bundle
-bin/console storage:config <api-key> >> .env.local 
+bin/console storage:config
 bin/console storage:list
 ```
 
@@ -59,25 +59,21 @@ symfony server:start -d
 symfony open:local --path=/storage/zones
 ```
 
-Or edit .env.local and add your API key.
+Storage zones (and their credentials) are configured in `flysystem.yaml` as shown above —
+local during dev, S3/Bunny/etc. in production via env vars.
 
-As each storage zone has its own passwords and id, these need to be configured individually in survos_storage.yaml.  Rather than tediously configuring each zone by cutting and pasting, we can use the first utility to dump the configuration with just the main api key.  This saves you from having to go to  https://dash.storage.net/storage and go to each storage zone, then click on it and select "FTP and ApiAccess" and selecting each key.
+To see what got wired at runtime, run the read-only diagnostic:
 
-
-```bin
-bin/console storage:config <api-key> 
-```
-
-Note: use --filter to limit to the zones to a regex (@todo)
-
-You can skip passing the api key on the command line by defining it as an environment variable, etc.
 ```bash
-echo "STORAGE_API_KEY=api-key >> .env.local
+bin/console storage:config
 ```
 
-This command dumps the packages/config/survos_storage.yaml file with references to the environment variables, which are also dumped and should be added to .env.local.  If your application only reads from storage, you can remove the password environment variables, it is only used during writing.  You can also remove the main api key if your application doesn't need it in production.
+It dumps the resolved zones and their adapters (class, root/bucket), which is handy for
+confirming env vars resolved correctly. It makes no changes and needs no credentials.
 
-Open .env.local and replace the values.
+> Legacy note: earlier versions shipped a Bunny-specific `storage:config <api-key>` that
+> fetched per-zone keys from the Bunny dashboard. The bundle is now backend-agnostic
+> (Flysystem), so that key-fetcher is gone; `storage:config` is purely diagnostic.
 
 Your application now has a bare-bones controller located at /admin/storage, you may want to secure this route in security.yaml, or configure it in config/routes/survos_storage.yaml.
 

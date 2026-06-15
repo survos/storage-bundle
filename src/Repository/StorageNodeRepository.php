@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Survos\StorageBundle\Repository;
 
 use Doctrine\ORM\EntityRepository;

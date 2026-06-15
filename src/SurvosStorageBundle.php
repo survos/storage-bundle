@@ -97,6 +97,7 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
             IterateCommand::class,
             StorageUploadCommand::class,
             StorageDownloadCommand::class,
+            StorageConfigCommand::class,
         ] as $commandName) {
             $builder->autowire($commandName)
                 ->setAutoconfigured(true)
@@ -134,7 +135,10 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
     {
         $bundles = $builder->getParameter('kernel.bundles');
         $bundleClasses = array_values($bundles);
-        $hasImgproxy = in_array('Mezcalito\\ImgproxyBundle\\ImgproxyBundle', $bundleClasses, true);
+        // imgproxy is optional; accept the current survos/imgproxy-bundle and the legacy
+        // mezcalito class so either consumer keeps working.
+        $hasImgproxy = in_array('Survos\\ImgproxyBundle\\SurvosImgproxyBundle', $bundleClasses, true)
+            || in_array('Mezcalito\\ImgproxyBundle\\ImgproxyBundle', $bundleClasses, true);
 
         if ($builder->hasExtension('ux_icons')) {
             $builder->prependExtensionConfig('ux_icons', [

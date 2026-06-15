@@ -50,7 +50,7 @@
         }
     },
     "suggest": {
-        "mezcalito/imgproxy-bundle": "optional thumbnail and preview rendering for image objects",
+        "survos/imgproxy-bundle": "optional thumbnail and preview rendering for image objects",
         "survos/simple-datatables-bundle": "searchable/sortable tables when browsing"
     }
 }

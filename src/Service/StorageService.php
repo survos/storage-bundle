@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Survos\StorageBundle\Service;
 
 use Aws\S3\S3ClientInterface;
@@ -35,12 +37,12 @@ class StorageService
 
     public function getClient(FilesystemAdapter $adapter): ClientInterface|S3ClientInterface
     {
-        return $this->getprivateProperty($adapter, 'client');
+        return $this->getPrivateProperty($adapter, 'client');
     }
 
     public function getBucket(FilesystemAdapter $adapter): string
     {
-        return $this->getprivateProperty($adapter, 'bucket');
+        return $this->getPrivateProperty($adapter, 'bucket');
     }
 
     public function getZones(): array
@@ -111,10 +113,24 @@ class StorageService
     }
 
 
-    public function downloadFile(string $filename, string $path, ?string $storageZone = null)
+    /**
+     * Read a file's raw bytes from a zone.
+     */
+    public function downloadFile(string $filename, string $path, ?string $storageZone = null): string
     {
+        $zone = $this->getZone($this->resolveZoneCode($storageZone));
+
+        return $zone->read($this->joinPath($path, $filename));
     }
 
+    /**
+     * Write content to a zone. Returns the resulting location + size.
+     *
+     * @param string|resource $body content to write
+     * @param array<string, mixed> $headers Flysystem write config
+     *
+     * @return array{zone: string, path: string, size: int}
+     */
     public function uploadFile(
         string  $fileName, // the filename on storage
         mixed   $body, // content to write
@@ -123,10 +139,38 @@ class StorageService
         array   $headers = [],
     ): array
     {
-        // ??
-        return [];
+        $zoneCode = $this->resolveZoneCode($storageZoneName);
+        $zone = $this->getZone($zoneCode);
+        $full = $this->joinPath($path, $fileName);
 
+        $zone->write($full, is_string($body) ? $body : stream_get_contents($body), $headers);
+
+        return ['zone' => $zoneCode, 'path' => $full, 'size' => $zone->fileSize($full)];
     }
 
+    private function joinPath(string $path, string $filename): string
+    {
+        return ltrim(rtrim($path, '/') . '/' . $filename, '/');
+    }
 
+    /**
+     * Resolve a zone code, defaulting to the sole configured zone when none is given.
+     */
+    private function resolveZoneCode(?string $code): string
+    {
+        if ($code !== null && $code !== '') {
+            return $code;
+        }
+
+        $zones = $this->getZones();
+        if (\count($zones) === 1) {
+            return (string) array_key_first($zones);
+        }
+
+        throw new \InvalidArgumentException(sprintf(
+            'A storage zone is required; %d zones are configured (%s).',
+            \count($zones),
+            implode(', ', array_keys($zones)),
+        ));
+    }
 }

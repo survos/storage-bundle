@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Survos\StorageBundle\Twig;
 
 use Twig\Extension\AbstractExtension;

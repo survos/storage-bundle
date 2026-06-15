@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Survos\StorageBundle\Controller;
 
 use Aws\Result;
@@ -43,12 +45,14 @@ class StorageController extends AbstractController
             'zones' => $this->storageService->getZones()];
     }
 
-    #[Route('/{zoneName}}/{path}/{fileName}/download', name: 'survos_storage_download', methods: ['GET'], requirements: ['path'=> ".+"])]
-    #[Template('@SurvosStorage/zone.html.twig')]
+    #[Route('/{zoneName}/{path}/{fileName}/download', name: 'survos_storage_download', methods: ['GET'], requirements: ['path'=> ".+"])]
     public function download(string $zoneName, string $path, string $fileName): Response
     {
-        $response = $this->storageService->downloadFile($fileName,$path,$zoneName);
-        return new Response($response); // eh
+        $contents = $this->storageService->downloadFile($fileName, $path, $zoneName);
+
+        return new Response($contents, Response::HTTP_OK, [
+            'Content-Disposition' => sprintf('attachment; filename="%s"', $fileName),
+        ]);
     }
 
     #[Route('/show/{zoneId}/{path}', name: 'survos_storage_view', methods: ['GET'], requirements: ['path'=> ".+"])]

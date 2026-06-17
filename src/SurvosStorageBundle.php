@@ -27,6 +27,7 @@ use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigura
 use Symfony\Component\DependencyInjection\Reference;
 use Survos\Kit\AbstractSurvosBundle;
 
+// Symfony\Component\HttpKernel\Bundle\Bundle <-- Flex auto-registration marker (see Survos\Kit\AbstractSurvosBundle)
 class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassInterface
 {
     use HasConfigurableRoutes;

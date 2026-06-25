@@ -20,6 +20,7 @@ use Survos\SimpleDatatables\SurvosSimpleDatatablesBundle;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
+use Symfony\Component\DependencyInjection\Compiler\PassConfig;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
@@ -34,7 +35,7 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
 
     public function build(ContainerBuilder $container): void
     {
-        $container->addCompilerPass($this);
+        $container->addCompilerPass($this, PassConfig::TYPE_BEFORE_OPTIMIZATION);
         $this->addRouteLoaderCompilerPass($container);
     }
 

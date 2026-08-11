@@ -1,8 +1,19 @@
 # StorageBundle
 
+[![Latest Stable Version](https://img.shields.io/packagist/v/survos/storage-bundle)](https://packagist.org/packages/survos/storage-bundle)
+[![License](https://img.shields.io/badge/license-MIT-informational)](LICENSE)
+
 A Symfony bundle to interact with storage (via Flysystem).  It exposes commands, controllers and twig utilities.  All of the underlying storage happens through Flysystem.
 
+## Used in production by
 
+- [kpa](https://kpa.survos.com)
+- [md](https://musdig.survos.com)
+- [mediary](https://mediary.survos.com)
+- [showcase](https://showcase.survos.com)
+- [zm](https://zm.survos.com)
+
+_(derived from showcase's `Component`/`Site` scan — apps whose `composer.json` requires `survos/storage-bundle` and have a deployed dokku site)_
 
 ## Quickstart
 ```bash

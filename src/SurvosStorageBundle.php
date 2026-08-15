@@ -137,8 +137,19 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
     {
         $bundles = $builder->getParameter('kernel.bundles');
         $bundleClasses = array_values($bundles);
-        // imgproxy is optional; accept the current survos/imgproxy-bundle and the legacy
-        // mezcalito class so either consumer keeps working.
+        // imgproxy is optional, and two unrelated bundles provide it. mezcalito/imgproxy-bundle
+        // is NOT legacy or a stale reference: it's a separate live package whose config root is
+        // `imgproxy` (a plain Bundle, so the alias comes from the class name), while
+        // survos/imgproxy-bundle's root is `survos_imgproxy`. They don't collide, which is why
+        // nothing has broken -- but ssai registers BOTH (config/bundles.php), and the
+        // prependExtensionConfig('imgproxy', ...) below targets the Mezcalito one only.
+        //
+        // Possible point of confusion, deliberately left alone for now: the Mezcalito bundle
+        // was adopted in ssai so imgproxy could point at another server, which now matters less
+        // since edge appliances run their own imgproxy and serve scan thumbnails directly
+        // without a round trip through S3. Consolidating on survos/imgproxy-bundle means porting
+        // ssai's config/packages/imgproxy.yaml presets to survos_imgproxy and repointing the
+        // prepend below -- an ssai decision, not a search/storage one.
         $hasImgproxy = in_array('Survos\\ImgproxyBundle\\SurvosImgproxyBundle', $bundleClasses, true)
             || in_array('Mezcalito\\ImgproxyBundle\\ImgproxyBundle', $bundleClasses, true);
 

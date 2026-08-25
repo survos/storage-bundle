@@ -15,6 +15,7 @@ use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
 use Symfony\Component\Routing\Attribute\Route;
+use Twig\Environment;
 
 class StorageController extends AbstractController
 {
@@ -37,12 +38,19 @@ class StorageController extends AbstractController
     #[Route('/zones', name: 'survos_storage_zones', methods: ['GET'])]
     #[Template('@SurvosStorage/zones.html.twig')]
     public function zones(
+        Environment $twig,
     ): Response|array
     {
         $this->checkSimpleDatatablesInstalled();
+
         return [
             'adapters' => $this->storageService->getAdapters(),
-            'zones' => $this->storageService->getZones()];
+            'zones' => $this->storageService->getZones(),
+            // symfony/ux-icons is not a requirement of this bundle -- the adapter icon is
+            // cosmetic, and forcing the dependency on every consuming app to get it is the wrong
+            // trade. Ask Twig instead of guessing; the template falls back to the type label.
+            'iconsAvailable' => $twig->getFunction('icon') !== false,
+        ];
     }
 
     #[Route('/{zoneName}/{path}/{fileName}/download', name: 'survos_storage_download', methods: ['GET'], requirements: ['path'=> ".+"])]

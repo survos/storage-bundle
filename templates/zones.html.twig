@@ -2,20 +2,13 @@
 
 {% block body %}
 
-    {% for code, zone in zones   %}
-
-        <h2>{{ code }}</h2>
-        <a href="{{ path('survos_storage_zone', {zoneId: code}) }}">
-            {{ code }}
-        </a>
-{#        {{ dump(adapters[code]) }}#}
-{#        {{ dump(zone) }}#}
-    {% endfor %}
+    <h1>Storage zones</h1>
 
     {% set columns = [
         'code',
-        'class',
         'adapter',
+        'location',
+        'description',
     ] %}
     <twig:simple_datatables
             perPage="20"
@@ -24,23 +17,30 @@
             :data="zones"
     >
         <twig:block name="code">
-            <a href="{{ path('survos_storage_zone', {zoneId: idx}) }}">
-                {{ idx }}
-            </a>
-        </twig:block>
-        <twig:block name="class">
-            {% set adapter = adapters[idx] %}
-            {{ adapter.class }}
+            <a href="{{ path('survos_storage_zone', {zoneId: idx}) }}">{{ idx }}</a>
         </twig:block>
 
         <twig:block name="adapter">
             {% set adapter = adapters[idx] %}
-            {{ adapter.bucket??'' }}
-{#            {{ dump(adapter) }}#}
-{#            {{ row.rootLocation| }}#}
-{#            <a href="{{ path('survos_storage_zone', {id: row.Id, zoneName: row.Name}) }}">#}
-{#                {{ row.Name }}#}
-{#            </a>#}
+            {# icon() comes from symfony/ux-icons, which this bundle does NOT require -- it is a
+               cosmetic addition and not worth forcing a dependency on every consuming app. The
+               controller reports whether the function exists; without it the type label alone
+               still identifies the adapter. #}
+            {% if iconsAvailable %}{{ icon(adapter.icon, {class: 'me-1'}) }}{% endif %}
+            {{ ('adapter.' ~ adapter.type)|trans({}, 'storage') }}
+        </twig:block>
+
+        <twig:block name="location">
+            <span class="small font-monospace text-muted">{{ adapters[idx].location }}</span>
+        </twig:block>
+
+        <twig:block name="description">
+            {# Zone codes are defined by the APP's flysystem config, so the description lives in
+               the app's storage translation domain. Compare against the key: an untranslated
+               zone should show nothing, not the raw "zone.foo.storage". #}
+            {% set key = 'zone.' ~ idx %}
+            {% set description = key|trans({}, 'storage') %}
+            {% if description != key %}{{ description }}{% endif %}
         </twig:block>
 
     </twig:simple_datatables>

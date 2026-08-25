@@ -1,0 +1,22 @@
+# Descriptions and labels for storage zones.
+#
+# Zone CODES are defined by each application's flysystem config, so this file cannot ship their
+# descriptions — a bundle has no way to know what `platform_vault.storage` means. It ships the
+# adapter-type labels, and each app adds its own `zone.<code>` entries in its own
+# translations/storage.en.yaml. An untranslated zone simply shows no description, which is why
+# the template compares the result against the key rather than printing it raw.
+#
+# Example, in an app:
+#   zone:
+#     'platform_vault.storage': 'Capture archives (write-once, GB-scale zips)'
+
+adapter:
+    local: 'Local disk'
+    s3: 'S3'
+    gcs: 'Google Cloud Storage'
+    azure: 'Azure Blob'
+    sftp: 'SFTP'
+    ftp: 'FTP'
+    zip: 'Zip archive'
+    memory: 'In-memory'
+    unknown: 'Other'

@@ -33,11 +33,33 @@
         </twig:block>
 
         <twig:block name="lastModified">
-            {{ row.lastModified ? row.lastModified|ago }}
+            {# Directories only. S3 has no directories at all -- they are synthesised from key
+               prefixes (CommonPrefixes), so there is no mtime to report; a local adapter over an
+               rclone FUSE mount reports a placeholder one, which is where the "26 years ago" on
+               every folio-archive dir came from. Showing nothing is honest; showing the mount's
+               invented timestamp is not. #}
+            {% if row.type == 'file' and row.lastModified %}
+                {{ row.lastModified|ago }}
+            {% endif %}
         </twig:block>
 
         <twig:block name="fileSize">
-            {{ row.fileSize|default(false) ? (row.fileSize / (1024 * 1024))|number_format(1) }}M
+            {# The "M" used to sit OUTSIDE the ternary, so every directory rendered a bare "M"
+               with no number. Directories have no size here: S3 cannot report one without walking
+               every key under the prefix, which is a request per directory per page render.
+               A child count would be worth showing, but it costs the same walk -- so neither is
+               displayed rather than displaying something wrong. #}
+            {# Formatted inline rather than with a filter: zenstruck/bytes is a PHP library, not
+               a Twig extension, and ea_filesize belongs to EasyAdmin, which not every app using
+               this bundle installs. Scaling past MB matters here -- the capture vault holds
+               single objects in the hundreds of GB, which the old MB-only format rendered as a
+               six-digit number of megabytes. #}
+            {% if row.type == 'file' and row.fileSize %}
+                {% set kb = row.fileSize / 1024 %}
+                {% if kb < 1024 %}{{ kb|number_format(1) }} KB
+                {% elseif kb < 1048576 %}{{ (kb / 1024)|number_format(1) }} MB
+                {% else %}{{ (kb / 1048576)|number_format(2) }} GB{% endif %}
+            {% endif %}
         </twig:block>
 
         <twig:block name="path">

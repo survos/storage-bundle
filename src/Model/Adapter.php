@@ -17,7 +17,8 @@ class Adapter
         private(set) string  $name,
         private(set) string  $class,
         private(set) ?string $rootLocation = null,
-        private(set) ?string $bucket = null
+        private(set) ?string $bucket = null,
+        private(set) ?string $prefix = null
     )
     {
     }
@@ -64,9 +65,28 @@ class Adapter
         }
     }
 
-    /** Where the zone actually points — the bucket for remote adapters, the path for local ones. */
+    /**
+     * Where the zone actually points, prefix included.
+     *
+     * The prefix is the whole point of showing this: survos-platform is mounted three times over
+     * folio-archive/, vault/ and folio/, and without it all three render as the same bare bucket
+     * name — which tells you nothing about which is which.
+     */
     public ?string $location {
-        get => $this->bucket ?: $this->rootLocation;
+        get {
+            // Only remote adapters compose bucket + prefix. A LocalFilesystemAdapter sets BOTH
+            // rootLocation and its prefixer to the same absolute path, so appending the prefix
+            // there duplicates it: "/platform/folio-archive/platform/folio-archive".
+            if ($this->bucket !== null && $this->bucket !== '') {
+                return $this->prefix === null
+                    ? $this->bucket
+                    : rtrim($this->bucket, '/') . '/' . $this->prefix;
+            }
+
+            // rootLocation is already the full path for local adapters. The prefix is the
+            // fallback for anything exposing neither (an FTP adapter's root, say).
+            return $this->rootLocation ?: $this->prefix;
+        }
     }
 
     public function getAbsolutePath(string $path): string

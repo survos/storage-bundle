@@ -64,7 +64,8 @@ class StorageService
                 $this->zoneMap[$idx],
                 $flysystemAdapter::class,
                 $this->getPrivateProperty($flysystemAdapter, 'rootLocation'),
-                $this->getPrivateProperty($flysystemAdapter, 'bucket')
+                $this->getPrivateProperty($flysystemAdapter, 'bucket'),
+                $this->getPrefix($flysystemAdapter),
             );
 
 
@@ -91,14 +92,47 @@ class StorageService
     {
         $this->zoneMap[$index] = $code;
     }
+    /**
+     * The path prefix a zone is scoped to, e.g. "folio-archive" or "vault".
+     *
+     * Only LocalFilesystemAdapter exposes a $rootLocation; AwsS3V3Adapter has $bucket and hides
+     * the prefix inside a PathPrefixer, so reading rootLocation alone reported three different S3
+     * zones as the same bare bucket name. Every Flysystem adapter composes a PathPrefixer, so
+     * going through that works for all of them.
+     */
+    private function getPrefix(mixed $flysystemAdapter): ?string
+    {
+        $prefixer = $this->getPrivateProperty($flysystemAdapter, 'prefixer');
+        if ($prefixer === null) {
+            return null;
+        }
+
+        // PathPrefixer stores the prefix WITH its trailing separator ("folio-archive/"); that is
+        // an implementation detail of path building, not something to show in a location column.
+        $prefix = trim((string) $this->getPrivateProperty($prefixer, 'prefix'), "/ \\");
+
+        return $prefix === '' ? null : $prefix;
+    }
+
     private function getPrivateProperty(mixed $object, string $property): mixed
     {
         $reflection = new \ReflectionClass($object);
-        if ($reflection->hasProperty($property)) {
-            return $reflection->getProperty($property)->getValue($object);
-        } else {
+        if (!$reflection->hasProperty($property)) {
             return null;
         }
+
+        $reflectionProperty = $reflection->getProperty($property);
+
+        // isInitialized() is not optional. Reading an uninitialized TYPED property is a fatal
+        // Error, not a null -- and adapters that connect lazily leave theirs unset until first
+        // use. FtpAdapter is the live example: listing the zones page threw
+        // "Typed property FtpAdapter::$prefixer must not be accessed before initialization"
+        // purely from asking what its prefix was, without ever touching the FTP server.
+        if (!$reflectionProperty->isInitialized($object)) {
+            return null;
+        }
+
+        return $reflectionProperty->getValue($object);
     }
 
     public function getStorageZones(): iterable

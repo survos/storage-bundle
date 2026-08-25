@@ -78,9 +78,13 @@ class Adapter
             // rootLocation and its prefixer to the same absolute path, so appending the prefix
             // there duplicates it: "/platform/folio-archive/platform/folio-archive".
             if ($this->bucket !== null && $this->bucket !== '') {
-                return $this->prefix === null
-                    ? $this->bucket
-                    : rtrim($this->bucket, '/') . '/' . $this->prefix;
+                // An empty prefix is common and meaningful: archive.storage declares
+                // prefix: '%env(string:S3_STORAGE_PREFIX)%', which resolves to '' when the var is
+                // unset. Appending it produced "museado/" — a trailing slash implying a directory
+                // that is not there.
+                $prefix = trim((string) $this->prefix, '/');
+
+                return $prefix === '' ? $this->bucket : rtrim($this->bucket, '/') . '/' . $prefix;
             }
 
             // rootLocation is already the full path for local adapters. The prefix is the

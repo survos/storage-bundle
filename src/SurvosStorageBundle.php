@@ -31,6 +31,9 @@ use Survos\Kit\AbstractSurvosBundle;
 // Symfony\Component\HttpKernel\Bundle\Bundle <-- Flex auto-registration marker (see Survos\Kit\AbstractSurvosBundle)
 class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassInterface
 {
+    /** Keys under a storage that are Filesystem options rather than an adapter block. */
+    private const NON_ADAPTER_KEYS = ['public_url', 'temporary_url', 'options'];
+
     use HasConfigurableRoutes;
 
     public function build(ContainerBuilder $container): void
@@ -43,22 +46,83 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
     {
         $storageService = $container->getDefinition('survos_storage.storage_service');
 
-        $taggedServices = $container->findTaggedServiceIds('flysystem.storage');
-        $adapters = [];
-        // if the order is the same, we can get the adapter by the index.  Ugh.
-        $loop = 0;
-        foreach ($taggedServices as $id => $attributes) {
-            // Note: do NOT call $container->get($id) here. Instantiating a
-            // flysystem storage at compile time forces eager construction of
-            // its adapter (e.g. the AWS S3 client) while %env()% placeholders
-            // are still unresolved, which throws "Region must be a valid RFC
-            // host label". We only need the service id + index.
-            $storageService->addMethodCall('addAdapter',
-                [$id, $loop]
-            );
-            $loop++;
+        // The DECLARED config, straight from the app's flysystem.yaml:
+        //
+        //   storages:
+        //     platform_vault.storage:
+        //       aws: { bucket: survos-platform, prefix: vault }
+        //
+        // This is the honest source for "what is this zone". The alternative — reflecting into
+        // the built adapter for private $bucket/$prefixer/$rootLocation — reads differently named
+        // internals per adapter class, fatals on adapters that connect lazily and leave typed
+        // properties uninitialized, and tells you nothing for an adapter it has no case for.
+        // Reading the adapter Definition's constructor arguments instead would be no better: they
+        // are positional, so it breaks silently whenever an adapter reorders its constructor.
+        //
+        // Config keys are named, stable, and are literally what the user wrote.
+        $storageConfig = $this->flysystemStorageConfig($container);
 
+        // The tag carries the storage name (FlysystemExtension: addTag('flysystem.storage',
+        // ['storage' => $storageName])), so the index has to line up with the iteration order of
+        // the tagged services only, not with anything else. Previously the name was inferred from
+        // position alone, with the comment "if the order is the same, we can get the adapter by
+        // the index. Ugh."
+        $loop = 0;
+        foreach ($container->findTaggedServiceIds('flysystem.storage') as $id => $attributes) {
+            // Note: do NOT call $container->get($id) here. Instantiating a flysystem storage at
+            // compile time forces eager construction of its adapter (e.g. the AWS S3 client)
+            // while %env()% placeholders are still unresolved, which throws "Region must be a
+            // valid RFC host label". The definition and the tag are enough.
+            $name = $attributes[0]['storage'] ?? $id;
+
+            $storageService->addMethodCall('addAdapter', [$id, $loop, $storageConfig[$name] ?? []]);
+            $loop++;
         }
+    }
+
+    /**
+     * Storage name => ['adapter' => 'aws', 'bucket' => ..., 'prefix' => ..., 'directory' => ...].
+     *
+     * getExtensionConfig() returns each contributing config file separately and unmerged, so
+     * later sources (when@dev overrides, for instance) have to be folded over earlier ones by
+     * hand. %env()% placeholders are left intact on purpose: passing them through as arguments
+     * lets the container resolve them at runtime, so a zone shows its real bucket rather than the
+     * literal "%env(PLATFORM_S3_BUCKET)%".
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private function flysystemStorageConfig(ContainerBuilder $container): array
+    {
+        $storages = [];
+        foreach ($container->getExtensionConfig('flysystem') as $config) {
+            foreach ($config['storages'] ?? [] as $name => $definition) {
+                if (!\is_array($definition)) {
+                    continue;
+                }
+                $storages[$name] = array_merge($storages[$name] ?? [], $definition);
+            }
+        }
+
+        $out = [];
+        foreach ($storages as $name => $definition) {
+            // The adapter type is whichever key holds an options array — 'aws', 'local', 'ftp'...
+            // Everything else at this level is a Filesystem option (visibility, read_only, ...).
+            foreach ($definition as $key => $options) {
+                if (!\is_array($options) || \in_array($key, self::NON_ADAPTER_KEYS, true)) {
+                    continue;
+                }
+
+                $out[$name] = [
+                    'adapter' => $key,
+                    'bucket' => $options['bucket'] ?? null,
+                    'prefix' => $options['prefix'] ?? null,
+                    'directory' => $options['directory'] ?? $options['root'] ?? null,
+                ];
+                break;
+            }
+        }
+
+        return $out;
     }
 
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void

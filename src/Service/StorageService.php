@@ -23,11 +23,19 @@ class StorageService
     public function __construct(
         #[AutowireIterator('flysystem.storage')] private iterable $storageZones, // no key!
         private array                                    $config = [],
-        private array $zoneMap = [] // maps code to zone index
+        private array $zoneMap = [], // maps code to zone index
+        /** @var array<string, array<string, mixed>> declared adapter config, keyed by zone code */
+        private array $zoneConfig = []
     )
     {
     }
 
+    /**
+     * The one reflection this class cannot avoid: League\Flysystem\Filesystem keeps its adapter
+     * private and offers no accessor, so there is no supported way to reach it. Everything the
+     * zones UI needs ABOUT an adapter now comes from the declared flysystem config instead (see
+     * SurvosStorageBundle::process()); this remains only for callers that need the adapter object.
+     */
     public function getAdapter(string $storageZone): FilesystemAdapter
     {
         $storageZone = $this->getZone($storageZone);
@@ -58,18 +66,24 @@ class StorageService
     {
         $adapters = [];
         foreach ($this->storageZones as $idx => $flysystem) {
+            $code = $this->zoneMap[$idx];
+            $config = $this->zoneConfig[$code] ?? [];
+
+            // The class still comes from the built adapter: it is the one thing the declared
+            // config does not name (flysystem.yaml says "aws", not AwsS3V3Adapter::class), and
+            // reading ::class off an object is not reflection into internals.
             $flysystemAdapter = $this->getPrivateProperty($flysystem, 'adapter');
-            // now map the adapter private properties
+
             $adapter = new Adapter(
-                $this->zoneMap[$idx],
-                $flysystemAdapter::class,
-                $this->getPrivateProperty($flysystemAdapter, 'rootLocation'),
-                $this->getPrivateProperty($flysystemAdapter, 'bucket'),
-                $this->getPrefix($flysystemAdapter),
+                $code,
+                $flysystemAdapter ? $flysystemAdapter::class : '',
+                rootLocation: $config['directory'] ?? null,
+                bucket: $config['bucket'] ?? null,
+                prefix: $config['prefix'] ?? null,
             );
 
 
-            $adapters[$this->zoneMap[$idx]] = $adapter;
+            $adapters[$code] = $adapter;
         }
         return $adapters;
     }
@@ -87,33 +101,19 @@ class StorageService
 
 
 
-    // this is the map from index to code, it assumes the order is the same.
-    public function addAdapter(string $code, int $index)
+    /**
+     * Called once per flysystem storage by SurvosStorageBundle::process(). $config is the
+     * DECLARED adapter config for that storage (adapter type, bucket, prefix, directory) taken
+     * from the app's flysystem.yaml — see the note there on why that beats reflecting into the
+     * built adapter.
+     *
+     * @param array<string, mixed> $config
+     */
+    public function addAdapter(string $code, int $index, array $config = []): void
     {
         $this->zoneMap[$index] = $code;
+        $this->zoneConfig[$code] = $config;
     }
-    /**
-     * The path prefix a zone is scoped to, e.g. "folio-archive" or "vault".
-     *
-     * Only LocalFilesystemAdapter exposes a $rootLocation; AwsS3V3Adapter has $bucket and hides
-     * the prefix inside a PathPrefixer, so reading rootLocation alone reported three different S3
-     * zones as the same bare bucket name. Every Flysystem adapter composes a PathPrefixer, so
-     * going through that works for all of them.
-     */
-    private function getPrefix(mixed $flysystemAdapter): ?string
-    {
-        $prefixer = $this->getPrivateProperty($flysystemAdapter, 'prefixer');
-        if ($prefixer === null) {
-            return null;
-        }
-
-        // PathPrefixer stores the prefix WITH its trailing separator ("folio-archive/"); that is
-        // an implementation detail of path building, not something to show in a location column.
-        $prefix = trim((string) $this->getPrivateProperty($prefixer, 'prefix'), "/ \\");
-
-        return $prefix === '' ? null : $prefix;
-    }
-
     private function getPrivateProperty(mixed $object, string $property): mixed
     {
         $reflection = new \ReflectionClass($object);

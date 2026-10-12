@@ -39,7 +39,11 @@
                every folio-archive dir came from. Showing nothing is honest; showing the mount's
                invented timestamp is not. #}
             {% if row.type == 'file' and row.lastModified %}
-                {{ row.lastModified|ago }}
+                {% guard filter ago %}
+                    {{ row.lastModified|ago }}
+                {% else %}
+                    {{ row.lastModified|date('Y-m-d H:i') }}
+                {% endguard %}
             {% endif %}
         </twig:block>
 

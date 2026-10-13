@@ -8,13 +8,13 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Survos\StorageBundle\Repository\StorageRepository;
-use function Symfony\Component\String\u;
+
 #[ORM\Entity(repositoryClass: StorageRepository::class)]
 #[ORM\Table(name: 'storage_storage')]
 class Storage implements \Stringable
 {
     #[ORM\Column(length: 255, nullable: true)]
-    private(set) ?string $adapter = null;
+    public private(set) ?string $adapter = null;
 
     /**
      * @var Collection<int, StorageNode>
@@ -28,13 +28,13 @@ class Storage implements \Stringable
     public function __construct(
         #[ORM\Id]
         #[ORM\Column(length: 255)]
-        private(set) ?string $id = null
-    )
-    {
+        public private(set) ?string $id = null,
+    ) {
         $this->storageNodes = new ArrayCollection();
     }
 
-    static public function calcCode(string $zoneId): string {
+    public static function calcCode(string $zoneId): string
+    {
         return $zoneId; // str_replace('.', '-', $zoneId);
     }
 
@@ -62,6 +62,6 @@ class Storage implements \Stringable
 
     public function __toString(): string
     {
-        return (string)$this->id;
+        return (string) $this->id;
     }
 }

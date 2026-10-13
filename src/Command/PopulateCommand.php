@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Survos\StorageBundle\Command;
 
 use Doctrine\ORM\EntityManagerInterface;
-use League\Flysystem\DirectoryAttributes;
 use Psr\Log\LoggerInterface;
 use Survos\StorageBundle\Entity\Storage;
 use Survos\StorageBundle\Entity\StorageNode;
@@ -26,30 +25,27 @@ use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
 #[AsCommand('storage:populate', 'Populate the storageNode database from a flysystem storage adapter')]
 final class PopulateCommand
 {
-
     private StorageNodeRepository $storageNodeRepository;
     private StorageRepository $storageRepository;
+
     public function __construct(
         private readonly StorageService $storageService,
         private MessageBusInterface $messageBus,
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
-    )
-    {
+    ) {
         $this->storageNodeRepository = $entityManager->getRepository(StorageNode::class);
         $this->storageRepository = $entityManager->getRepository(Storage::class);
     }
 
     public function __invoke(
-        SymfonyStyle                                                                                          $io,
-        #[Argument(description: 'zone id, e.g. local.storage', name: 'zone')] ?string $zoneId=null,
-        #[Argument('path name within zone')] string        $path='/',
+        SymfonyStyle $io,
+        #[Argument(description: 'zone id, e.g. local.storage', name: 'zone')] ?string $zoneId = null,
+        #[Argument('path name within zone')] string $path = '/',
         #[Option] bool $recursive = false,
-        #[Option("Dispatch an LoadDirectory message")] bool $dispatch = false,
+        #[Option('Dispatch an LoadDirectory message')] bool $dispatch = false,
         #[Option] ?bool $sync = null,
-
-    ): int
-    {
+    ): int {
         if (!$zoneId) {
             $zoneChoices = [];
             foreach ($this->storageService->getZones() as $storageId => $zone) {
@@ -57,7 +53,7 @@ final class PopulateCommand
                 $model = $this->storageService->getAdapterModel($storageId);
                 $zoneChoices[] = $storageId; // sprintf('%s %s (%s)', $zoneId, pathinfo($adapter::class), $model->bucket);
             }
-            $zoneId = $io->askQuestion(new ChoiceQuestion("storage key (from flysytem)", $zoneChoices));
+            $zoneId = $io->askQuestion(new ChoiceQuestion('storage key (from flysytem)', $zoneChoices));
         }
         // this is a Flysystem/Filesystem class, which flysystem calls "storage"
         $zone = $this->storageService->getZone($zoneId);
@@ -65,14 +61,14 @@ final class PopulateCommand
         if (!$dispatch) {
             $io->warning('use --dispatch to do something besides populate database');
         }
-//        $storage = $this->storageService->getZone($zoneId);
+        //        $storage = $this->storageService->getZone($zoneId);
 
         $path = ltrim($path, '/');
-//        $adapter = $this->storageService->getAdapter($zoneId);
-//        $zone = $this->storageService->getZone($zoneId);
+        //        $adapter = $this->storageService->getAdapter($zoneId);
+        //        $zone = $this->storageService->getZone($zoneId);
         $storageCode = Storage::calcCode($zoneId);
         if (!$storage = $this->storageRepository->find($storageCode)) {
-//            assert(false, "missing a storage entity??");
+            //            assert(false, "missing a storage entity??");
             $storage = new Storage($storageCode);
             $this->entityManager->persist($storage);
         }
@@ -81,12 +77,12 @@ final class PopulateCommand
         // @todo: fetch codes for faster skipping
         if (!$dirEntity = $this->storageNodeRepository->find($code)) {
             $dirEntity = new StorageNode($storage, $path, isDir: true, isPublic: true);
-            $dirEntity->name = $zoneId . ' Root';
+            $dirEntity->name = $zoneId.' Root';
             assert($code == $dirEntity->id);
             $this->entityManager->persist($dirEntity);
         }
         $this->entityManager->flush();
-        $io->writeln("File and Storage entities written");
+        $io->writeln('File and Storage entities written');
 
         $dispatched = [];
         if ($dispatch) {
@@ -133,7 +129,5 @@ final class PopulateCommand
         $io->success('Make sure bin/console mess:consume async is running');
 
         return Command::SUCCESS;
-
     }
-
 }

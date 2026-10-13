@@ -5,22 +5,15 @@ declare(strict_types=1);
 namespace Survos\StorageBundle\MessageHandler;
 
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
-use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Survos\StorageBundle\Entity\Storage;
 use Survos\StorageBundle\Entity\StorageNode;
 use Survos\StorageBundle\Event\DirectoryListingPostLoadEvent;
 use Survos\StorageBundle\Event\DirectoryListingPreIterateEvent;
 use Survos\StorageBundle\Message\DirectoryListingMessage;
 use Survos\StorageBundle\Service\StorageService;
-use InvalidArgumentException;
-use DateTime;
-use function array_filter;
-use function basename;
-use function is_int;
-use function method_exists;
-use function trim;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 #[AsMessageHandler]
 final class DirectoryListingMessageHandler
@@ -30,15 +23,16 @@ final class DirectoryListingMessageHandler
         private readonly StorageService $storageService,
         private readonly MessageBusInterface $bus,
         private readonly EventDispatcherInterface $eventDispatcher,
-    ) {}
+    ) {
+    }
 
     public function __invoke(DirectoryListingMessage $message): void
     {
-        if ($message->type !== StorageNode::TYPE_DIR && $message->type !== DirectoryListingMessage::LOAD) {
-            throw new InvalidArgumentException('DirectoryListingMessageHandler only handles directory listing messages.');
+        if (StorageNode::TYPE_DIR !== $message->type && DirectoryListingMessage::LOAD !== $message->type) {
+            throw new \InvalidArgumentException('DirectoryListingMessageHandler only handles directory listing messages.');
         }
 
-        $path = trim($message->path, '/');
+        $path = \trim($message->path, '/');
         $storageCode = Storage::calcCode($message->zoneId);
         $storage = $this->em->getRepository(Storage::class)->find($storageCode);
         if (!$storage) {
@@ -59,7 +53,7 @@ final class DirectoryListingMessageHandler
                 path: $path,
                 isDir: true
             );
-            $storageNode->name = $path !== '' ? basename($path) : $message->zoneId . ' root';
+            $storageNode->name = '' !== $path ? \basename($path) : $message->zoneId.' root';
             $this->em->persist($storageNode);
             $this->em->flush();
         }
@@ -94,34 +88,34 @@ final class DirectoryListingMessageHandler
                     isDir: $item->isDir()
                 );
                 $child->parent = $storageNode;
-                $child->name = basename($childPath);
+                $child->name = \basename($childPath);
                 $lastMod = $item->lastModified();
-                $child->lastModified = is_int($lastMod)
-                    ? (new DateTime())->setTimestamp($lastMod)
+                $child->lastModified = \is_int($lastMod)
+                    ? (new \DateTime())->setTimestamp($lastMod)
                     : $lastMod;
                 $child->fileSize = $item->isFile() ? $item->fileSize() : null;
-                $child->meta = array_filter([
-                    'mimeType' => method_exists($item, 'mimeType') ? $item->mimeType() : null,
+                $child->meta = \array_filter([
+                    'mimeType' => \method_exists($item, 'mimeType') ? $item->mimeType() : null,
                 ]);
                 $this->em->persist($child);
             }
 
-            $childDepth = $path === '' ? 1 : substr_count($path, '/') + 2;
-            $childName  = basename($childPath);
+            $childDepth = '' === $path ? 1 : substr_count($path, '/') + 2;
+            $childName = \basename($childPath);
 
             if ($item->isDir()) {
-                $dirCount++;
+                ++$dirCount;
                 $toDispatch[] = new DirectoryListingMessage(
-                    zoneId:     $message->zoneId,
-                    type:       StorageNode::TYPE_DIR,
-                    path:       $childPath,
-                    name:       $childName,
+                    zoneId: $message->zoneId,
+                    type: StorageNode::TYPE_DIR,
+                    path: $childPath,
+                    name: $childName,
                     parentPath: $path,
-                    depth:      $childDepth,
-                    context:    $message->context,
+                    depth: $childDepth,
+                    context: $message->context,
                 );
             } else {
-                $fileCount++;
+                ++$fileCount;
             }
         }
 
@@ -139,12 +133,12 @@ final class DirectoryListingMessageHandler
         }
 
         $this->eventDispatcher->dispatch(new DirectoryListingPostLoadEvent(
-            zoneId:        $message->zoneId,
-            path:          $path,
-            storage:       $storage,
-            storageNode:   $storageNode,
-            dirCount:      $dirCount,
-            fileCount:     $fileCount,
+            zoneId: $message->zoneId,
+            path: $path,
+            storage: $storage,
+            storageNode: $storageNode,
+            dirCount: $dirCount,
+            fileCount: $fileCount,
             totalChildren: $dirCount + $fileCount,
         ));
     }

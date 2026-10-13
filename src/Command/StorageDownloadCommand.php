@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Survos\StorageBundle\Command;
 
-use Exception;
 use Survos\StorageBundle\Service\StorageService;
 use Symfony\Component\Console\Attribute\Argument;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -13,8 +12,6 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
-use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
-use ZipArchive;
 
 #[AsCommand('storage:download', 'download remote storage files', help: <<<END
 # downloads to data/composer.json
@@ -23,7 +20,6 @@ bin/console -vvv storage:download data/composer.json
 END)]
 final class StorageDownloadCommand
 {
-
     public function __construct(
         private readonly StorageService $storageService,
         #[Autowire('%kernel.project_dir%')] private $projectDir,
@@ -31,7 +27,7 @@ final class StorageDownloadCommand
     }
 
     /**
-     * @throws Exception
+     * @throws \Exception
      */
     public function __invoke(
         SymfonyStyle $io,
@@ -42,8 +38,9 @@ final class StorageDownloadCommand
         #[Option('download even if file exists')] bool $force = false,
     ): int {
         if ($unzip) {
-            if (pathinfo($remoteFilename, PATHINFO_EXTENSION) !== 'zip') {
-                $io->error("Only zip files are supported");
+            if ('zip' !== pathinfo($remoteFilename, PATHINFO_EXTENSION)) {
+                $io->error('Only zip files are supported');
+
                 return Command::FAILURE;
             }
         }
@@ -62,18 +59,18 @@ final class StorageDownloadCommand
         $filename = (pathinfo($localDirOrFilename, PATHINFO_EXTENSION)) ? basename($localDirOrFilename) : null;
 
         if (!is_dir($downloadDir)) {
-            $io->info("Creating " . $downloadDir);
+            $io->info('Creating '.$downloadDir);
             mkdir($downloadDir, 0777, true);
         }
 
         if (!str_ends_with($downloadDir, '/')) {
-            $downloadDir .= "/";
+            $downloadDir .= '/';
         }
 
         if ($filename) {
-            $downloadPath =  $downloadDir . $filename;
+            $downloadPath = $downloadDir.$filename;
         } else {
-            $downloadPath = $downloadDir . $shortDownloadFilename;
+            $downloadPath = $downloadDir.$shortDownloadFilename;
         }
 
         $downloadPath = $this->clearDirPath($downloadPath);
@@ -82,8 +79,7 @@ final class StorageDownloadCommand
             $remoteShortName = pathinfo($remoteFilename, PATHINFO_BASENAME);
 
             $io->info("Downloading $remoteShortName at $remotePath to  $downloadPath");
-//            dump(realPath: $downloadPath, filename: $shortDownloadFilename);
-
+            //            dump(realPath: $downloadPath, filename: $shortDownloadFilename);
 
             $ret = $this->storageService->downloadFile($remoteShortName, $remotePath, $zoneName);
             file_put_contents($downloadPath, $ret);
@@ -91,18 +87,18 @@ final class StorageDownloadCommand
             $io->info("$downloadPath written with $size bytes");
         }
 
-        $io->success('storage:download: downloaded to ' . realpath($downloadPath));
+        $io->success('storage:download: downloaded to '.realpath($downloadPath));
 
         if ($unzip) {
             $io->info("Unzipped $downloadPath to $localDirOrFilename");
-            $dir = $downloadDir . DIRECTORY_SEPARATOR . pathinfo($downloadPath, PATHINFO_FILENAME);
+            $dir = $downloadDir.DIRECTORY_SEPARATOR.pathinfo($downloadPath, PATHINFO_FILENAME);
             $io->info("Unzipping $downloadPath to $dir");
             $this->unzip($downloadPath, $dir, $io);
 
             $table = new Table($io);
             $table->setStyle('compact');
             $table->setHeaders(['name', 'size']);
-            foreach (glob($dir . '/*') as $file) {
+            foreach (glob($dir.'/*') as $file) {
                 $table->addRow([basename($file), filesize($file)]);
             }
             $table->render();
@@ -113,17 +109,17 @@ final class StorageDownloadCommand
 
     private function sanitizeLocalDir(
         string $remoteFilename,
-        string $localDirOrFilename = ""
+        string $localDirOrFilename = '',
     ): string {
         if ($localDirOrFilename) {
             $shortFilename = pathinfo($localDirOrFilename, PATHINFO_BASENAME);
             if (str_ends_with($localDirOrFilename, '/') || !pathinfo($localDirOrFilename, PATHINFO_EXTENSION)) {
-                $downloadFilename = $localDirOrFilename . $shortFilename;
+                $downloadFilename = $localDirOrFilename.$shortFilename;
                 $downloadDir = $this->removeForwardSlash($localDirOrFilename);
             } else {
                 // it's a filename
                 $downloadDir = pathinfo($localDirOrFilename, PATHINFO_DIRNAME);
-                if ($downloadDir === '.') {
+                if ('.' === $downloadDir) {
                     $downloadDir = '';
                 }
             }
@@ -133,8 +129,9 @@ final class StorageDownloadCommand
 
         if (!str_starts_with($downloadDir, '/')) {
             // The string does not start with a '/', prepend $this->projectDir
-            $downloadDir = $this->projectDir . '/' . $downloadDir;
+            $downloadDir = $this->projectDir.'/'.$downloadDir;
         }
+
         return $downloadDir;
     }
 
@@ -143,24 +140,24 @@ final class StorageDownloadCommand
         if (str_ends_with($path, '/')) {
             return rtrim($path, '/');
         }
+
         return $path;
     }
+
     /**
-     * @param string $zipPath
-     * @param string $destination
-     * @throws Exception
+     * @throws \Exception
      */
     private function unzip(string $zipPath, string $destination, SymfonyStyle $io): void
     {
-        $zip = new ZipArchive();
+        $zip = new \ZipArchive();
         try {
-            if ($zip->open($zipPath) === true) {
+            if (true === $zip->open($zipPath)) {
                 $zip->extractTo($destination);
                 $zip->close();
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $io->error($e->getMessage());
-            throw new Exception("Could not unzip $zipPath to $destination");
+            throw new \Exception("Could not unzip $zipPath to $destination");
         }
     }
 
@@ -170,9 +167,10 @@ final class StorageDownloadCommand
         $normalizedPath = preg_replace('#/+#', '/', $fullFilePath);
 
         // If path starts with a single `/` (for absolute paths), retain it
-        if ($fullFilePath[0] === '/') {
-            $normalizedPath = '/' . ltrim($normalizedPath, '/');
+        if ('/' === $fullFilePath[0]) {
+            $normalizedPath = '/'.ltrim($normalizedPath, '/');
         }
+
         return $normalizedPath;
     }
 }

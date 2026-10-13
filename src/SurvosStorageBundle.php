@@ -5,36 +5,31 @@ declare(strict_types=1);
 namespace Survos\StorageBundle;
 
 use League\FlysystemBundle\FlysystemBundle;
+use Survos\Kit\AbstractSurvosBundle;
+use Survos\Kit\Traits\HasConfigurableRoutes;
 use Survos\StorageBundle\Command\IterateCommand;
 use Survos\StorageBundle\Command\PopulateCommand;
 use Survos\StorageBundle\Command\StorageConfigCommand;
-use Survos\StorageBundle\Command\StorageListCommand;
 use Survos\StorageBundle\Command\StorageDownloadCommand;
+use Survos\StorageBundle\Command\StorageListCommand;
 use Survos\StorageBundle\Command\StorageUploadCommand;
 use Survos\StorageBundle\Controller\StorageController;
 use Survos\StorageBundle\MessageHandler\DebugMessageHandler;
-use Survos\Kit\Traits\HasConfigurableRoutes;
 use Survos\StorageBundle\Service\StorageService;
 use Survos\StorageBundle\Twig\TwigExtension;
-use Survos\SimpleDatatables\SurvosSimpleDatatablesBundle;
-use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\Compiler\PassConfig;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\DependencyInjection\Reference;
-use Survos\Kit\AbstractSurvosBundle;
 
 // Symfony\Component\HttpKernel\Bundle\Bundle <-- Flex auto-registration marker (see Survos\Kit\AbstractSurvosBundle)
 class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassInterface
 {
+    use HasConfigurableRoutes;
     /** Keys under a storage that are Filesystem options rather than an adapter block. */
     private const NON_ADAPTER_KEYS = ['public_url', 'temporary_url', 'options'];
-
-    use HasConfigurableRoutes;
 
     public function build(ContainerBuilder $container): void
     {
@@ -76,7 +71,7 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
             $name = $attributes[0]['storage'] ?? $id;
 
             $storageService->addMethodCall('addAdapter', [$id, $loop, $storageConfig[$name] ?? []]);
-            $loop++;
+            ++$loop;
         }
     }
 
@@ -133,7 +128,6 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
         // get all bundles https://symfony.com/doc/current/bundles/prepend_extension.html
         $bundles = $builder->getParameter('kernel.bundles');
 
-
         $hasSimpleDatatables = in_array(FlysystemBundle::class, array_values($bundles));
 
         $serviceId = 'survos_storage.storage_service';
@@ -151,11 +145,10 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
         ;
 
         if (class_exists(\Survos\TablerBundle\Event\MenuEvent::class)) {
-            $builder->autowire(\Survos\StorageBundle\Menu\StorageMenuSubscriber::class)
+            $builder->autowire(Menu\StorageMenuSubscriber::class)
                 ->setAutowired(true)
                 ->setAutoconfigured(true);
         }
-
 
         foreach ([
             PopulateCommand::class,
@@ -171,7 +164,7 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
         }
 
         // Messenger handlers
-        $builder->autowire(\Survos\StorageBundle\MessageHandler\DirectoryListingMessageHandler::class)
+        $builder->autowire(MessageHandler\DirectoryListingMessageHandler::class)
             ->setAutoconfigured(true)
             ->addTag('messenger.message_handler');
         $builder->autowire(DebugMessageHandler::class)
@@ -179,12 +172,11 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
             ->setAutoconfigured(true)
             ->addTag('messenger.message_handler');
 
-
-//        // twig classes, for storage_url ?
-//        $builder
-//            ->autowire('survos.storage_twig', TwigExtension::class)
-//            ->setAutoconfigured(true)
-//            ->addTag('twig.extension');
+        //        // twig classes, for storage_url ?
+        //        $builder
+        //            ->autowire('survos.storage_twig', TwigExtension::class)
+        //            ->setAutoconfigured(true)
+        //            ->addTag('twig.extension');
     }
 
     public function configure(DefinitionConfigurator $definition): void
@@ -221,8 +213,8 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
             $builder->prependExtensionConfig('ux_icons', [
                 'aliases' => [
                     'database' => 'tabler:database',
-                    'server'   => 'tabler:server',
-                    'folder'   => 'tabler:folder',
+                    'server' => 'tabler:server',
+                    'folder' => 'tabler:folder',
                 ],
             ]);
         }
@@ -268,5 +260,4 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
             ],
         ]);
     }
-
 }

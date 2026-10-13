@@ -14,5 +14,6 @@ final class DirectoryListingPreIterateEvent
         public readonly string $path,
         public readonly Storage $storage,
         public readonly StorageNode $storageNode,
-    ) {}
+    ) {
+    }
 }

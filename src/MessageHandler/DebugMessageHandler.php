@@ -10,13 +10,6 @@ use Survos\StorageBundle\Message\DirectoryListingMessage;
 use Survos\StorageBundle\Service\StorageService;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use function basename;
-use function count;
-use function explode;
-use function is_int;
-use function sprintf;
-use function str_repeat;
-use function trim;
 
 #[AsMessageHandler]
 final class DebugMessageHandler
@@ -25,7 +18,8 @@ final class DebugMessageHandler
         private readonly StorageService $storageService,
         private readonly LoggerInterface $logger,
         private readonly bool $debug = false,
-    ) {}
+    ) {
+    }
 
     public function __invoke(DirectoryListingMessage $message): void
     {
@@ -33,11 +27,11 @@ final class DebugMessageHandler
             return;
         }
 
-        if ($message->type !== StorageNode::TYPE_DIR && $message->type !== DirectoryListingMessage::LOAD) {
+        if (StorageNode::TYPE_DIR !== $message->type && DirectoryListingMessage::LOAD !== $message->type) {
             return;
         }
 
-        $verbosity = is_int($message->context[DirectoryListingMessage::CONTEXT_VERBOSITY] ?? null)
+        $verbosity = \is_int($message->context[DirectoryListingMessage::CONTEXT_VERBOSITY] ?? null)
             ? $message->context[DirectoryListingMessage::CONTEXT_VERBOSITY]
             : OutputInterface::VERBOSITY_NORMAL;
 
@@ -45,12 +39,12 @@ final class DebugMessageHandler
             return;
         }
 
-        $path = trim($message->path, '/');
-        $depth = $path === '' ? 0 : count(explode('/', $path));
-        $indent = str_repeat('  ', $depth);
-        $label = $path === '' ? $message->zoneId : basename($path);
+        $path = \trim($message->path, '/');
+        $depth = '' === $path ? 0 : \count(\explode('/', $path));
+        $indent = \str_repeat('  ', $depth);
+        $label = '' === $path ? $message->zoneId : \basename($path);
 
-        $this->logger->info(sprintf('%s%s/', $indent, $label));
+        $this->logger->info(\sprintf('%s%s/', $indent, $label));
 
         if ($verbosity < OutputInterface::VERBOSITY_VERY_VERBOSE) {
             return;
@@ -63,10 +57,10 @@ final class DebugMessageHandler
                 continue;
             }
 
-            $this->logger->info(sprintf(
+            $this->logger->info(\sprintf(
                 '%s  %s (%d)',
                 $indent,
-                basename($item->path()),
+                \basename($item->path()),
                 $item->fileSize() ?? 0,
             ));
         }

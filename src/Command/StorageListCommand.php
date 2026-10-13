@@ -14,32 +14,28 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Question\ChoiceQuestion;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Stopwatch\Stopwatch;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Zenstruck\Bytes;
 
 #[AsCommand('storage:list', 'list storage files')]
 final class StorageListCommand
 {
-
     public function __construct(
         private readonly StorageService $storageService,
         private EventDispatcherInterface $eventDispatcher,
-        private ?Stopwatch $stopwatch=null,
-    )
-    {
+        private ?Stopwatch $stopwatch = null,
+    ) {
     }
 
     public function __invoke(
-        SymfonyStyle                                                                                          $io,
-        #[Argument('path name within zone')] string        $path='',
-        #[Argument('zone id, e.g. default.storage', name: 'zone')] ?string $zoneId=null,
-//        #[Option] ?bool $recursive = null,
+        SymfonyStyle $io,
+        #[Argument('path name within zone')] string $path = '',
+        #[Argument('zone id, e.g. default.storage', name: 'zone')] ?string $zoneId = null,
+        //        #[Option] ?bool $recursive = null,
         #[Option] int $dirLimit = 10,
         #[Option] int $fileLimit = 20,
-
-    ): int
-    {
+    ): int {
         $recursive = false; // too expensive!
         if (!$zoneId) {
             $this->renderStorages($io);
@@ -49,14 +45,14 @@ final class StorageListCommand
                 $model = $this->storageService->getAdapterModel($storageId);
                 $zoneChoices[] = $storageId; // sprintf('%s %s (%s)', $zoneId, pathinfo($adapter::class), $model->bucket);
             }
-            $zoneId = $io->askQuestion(new ChoiceQuestion("storage key (from flysytem)", $zoneChoices));
+            $zoneId = $io->askQuestion(new ChoiceQuestion('storage key (from flysytem)', $zoneChoices));
         }
         // this is a Flysystem/Filesystem class, which flysystem calls "storage"
         $storage = $this->storageService->getZone($zoneId);
         // @todo: add a timer here.
         if ($stopwatch = $this->stopwatch) {
             $stopwatch->start('listing');
-            $iterator = $storage->listContents($path, (bool)$recursive);
+            $iterator = $storage->listContents($path, (bool) $recursive);
             $event = $stopwatch->stop('listing');
             $msg = sprintf(
                 "Listing took %d ms and used %d MB of memory\n",
@@ -65,7 +61,7 @@ final class StorageListCommand
             );
         } else {
             $iterator = $storage->listContents('some/path', true);
-            $msg = "No stopwatch";
+            $msg = 'No stopwatch';
         }
         $io->writeln($msg);
 
@@ -75,9 +71,9 @@ final class StorageListCommand
             $type = $file['type'];
             $files[$type][] = $file;
         }
-        $io->title(count($files['dir']) . ' directories');
+        $io->title(count($files['dir']).' directories');
         $table = new Table($io);
-        $table->setHeaders(['path','modified','visibility']);
+        $table->setHeaders(['path', 'modified', 'visibility']);
         /** @var DirectoryAttributes $file */
         foreach ($files['dir'] as $idx => $file) {
             if ($idx < $dirLimit) {
@@ -86,10 +82,10 @@ final class StorageListCommand
         }
         $table->render();
 
-        $files = $files['file']??[];
-        $io->title(count($files) . ' files');
+        $files = $files['file'] ?? [];
+        $io->title(count($files).' files');
         $table = new Table($io);
-        $table->setHeaders(['path','size', 'modified','visibility']);
+        $table->setHeaders(['path', 'size', 'modified', 'visibility']);
         /** @var FileAttributes $file */
         foreach ($files as $idx => $file) {
             if ($idx > $fileLimit) {
@@ -106,24 +102,19 @@ final class StorageListCommand
     {
         $adapters = $this->storageService->getAdapters();
         $table = new Table($io);
-        $table->setHeaderTitle("Flysystem Storage Adapters");
-        $headers = ['Name', 'Class','root'];
+        $table->setHeaderTitle('Flysystem Storage Adapters');
+        $headers = ['Name', 'Class', 'root'];
         $table->setHeaders($headers);
         foreach ($adapters as $adapter) {
             $row = [
                 $adapter->getName(),
                 $adapter->getClass(),
-                $adapter->getRootLocation()??$adapter->getBucket(),
+                $adapter->getRootLocation() ?? $adapter->getBucket(),
             ];
-//            $row['Id'] = "<href=https://dash.storage.net/storage/$id/file-manager>$id</>";
+            //            $row['Id'] = "<href=https://dash.storage.net/storage/$id/file-manager>$id</>";
 
             $table->addRow($row);
         }
         $table->render();
-
     }
-
-
-
-
 }

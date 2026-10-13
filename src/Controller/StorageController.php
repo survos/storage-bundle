@@ -7,7 +7,6 @@ namespace Survos\StorageBundle\Controller;
 use Aws\Result;
 use Aws\S3\S3ClientInterface;
 use League\Flysystem\FileAttributes;
-use League\Flysystem\FilesystemOperator;
 use Survos\StorageBundle\Service\StorageService;
 use Symfony\Bridge\Twig\Attribute\Template;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -21,16 +20,14 @@ class StorageController extends AbstractController
 {
     public function __construct(
         private StorageService $storageService,
-//        private #[AutowireIterator('flysystem.storage')] iterable $storages,
+        //        private #[AutowireIterator('flysystem.storage')] iterable $storages,
         private $simpleDatatablesInstalled = false,
-    )
-    {
-
+    ) {
     }
 
     private function checkSimpleDatatablesInstalled()
     {
-        if (! $this->simpleDatatablesInstalled) {
+        if (!$this->simpleDatatablesInstalled) {
             throw new \LogicException("This page requires SimpleDatatables\n composer req survos/simple-datatables-bundle");
         }
     }
@@ -39,8 +36,7 @@ class StorageController extends AbstractController
     #[Template('@SurvosStorage/zones.html.twig')]
     public function zones(
         Environment $twig,
-    ): Response|array
-    {
+    ): Response|array {
         $this->checkSimpleDatatablesInstalled();
 
         return [
@@ -49,11 +45,11 @@ class StorageController extends AbstractController
             // symfony/ux-icons is not a requirement of this bundle -- the adapter icon is
             // cosmetic, and forcing the dependency on every consuming app to get it is the wrong
             // trade. Ask Twig instead of guessing; the template falls back to the type label.
-            'iconsAvailable' => $twig->getFunction('icon') !== false,
+            'iconsAvailable' => false !== $twig->getFunction('icon'),
         ];
     }
 
-    #[Route('/{zoneName}/{path}/{fileName}/download', name: 'survos_storage_download', methods: ['GET'], requirements: ['path'=> ".+"])]
+    #[Route('/{zoneName}/{path}/{fileName}/download', name: 'survos_storage_download', methods: ['GET'], requirements: ['path' => '.+'])]
     public function download(string $zoneName, string $path, string $fileName): Response
     {
         $contents = $this->storageService->downloadFile($fileName, $path, $zoneName);
@@ -63,14 +59,13 @@ class StorageController extends AbstractController
         ]);
     }
 
-    #[Route('/show/{zoneId}/{path}', name: 'survos_storage_view', methods: ['GET'], requirements: ['path'=> ".+"])]
+    #[Route('/show/{zoneId}/{path}', name: 'survos_storage_view', methods: ['GET'], requirements: ['path' => '.+'])]
     #[Template('@SurvosStorage/show.html.twig')]
     public function show(
         string $zoneId,
         string $path,
-        #[MapQueryParameter] bool $signed=false,
-    ): Response|array
-    {
+        #[MapQueryParameter] bool $signed = false,
+    ): Response|array {
         $service = $this->storageService->getZone($zoneId);
         $directUrl = null;
         try {
@@ -81,10 +76,11 @@ class StorageController extends AbstractController
             $directUrl = null;
         }
 
-        $file  = [
+        $file = [
             'name' => $path,
             'size' => $service->fileSize($path),
         ];
+
         return [
             'file' => $file,
             'zoneId' => $zoneId,
@@ -95,28 +91,26 @@ class StorageController extends AbstractController
 
     #[Route('/{zoneId}/{path}', name: 'survos_storage_zone', methods: ['GET'],
         requirements: [
-            'zoneId'=>'[0-9a-z_.]*',
-            'path'=>'.+'
+            'zoneId' => '[0-9a-z_.]*',
+            'path' => '.+',
         ]
     )]
     #[Template('@SurvosStorage/zone.html.twig')]
     public function zone(
         string $zoneId,
-        ?string $path='/',
-        #[MapQueryParameter] bool $deep=false,
-        #[MapQueryParameter] bool $addMeta=false,
-        #[MapQueryParameter] bool $signed=false,
-    ): Response|array
-    {
+        ?string $path = '/',
+        #[MapQueryParameter] bool $deep = false,
+        #[MapQueryParameter] bool $addMeta = false,
+        #[MapQueryParameter] bool $signed = false,
+    ): Response|array {
         $storage = $this->storageService->getZone($zoneId);
         $this->checkSimpleDatatablesInstalled();
         $adapter = $this->storageService->getAdapter($zoneId);
 
-//        $client = $this->storageService->getClient($adapter);
-//        $bucket = $this->storageService->getBucket($adapter);
+        //        $client = $this->storageService->getClient($adapter);
+        //        $bucket = $this->storageService->getBucket($adapter);
 
         $iterator = $storage->listContents($path, $deep);
-
 
         $files = iterator_to_array($iterator);
         $publicUrls = [];
@@ -147,22 +141,23 @@ class StorageController extends AbstractController
             }
         }
 
-//        $this->addMetadata($files, $addMeta, $storage, $client, $bucket);
+        //        $this->addMetadata($files, $addMeta, $storage, $client, $bucket);
         $json = json_encode($files);
-//        dd(count($files), strlen($json));
-//        foreach ($files as $file) {
-//            $storage->setVisibility($file->path(), 'public');
-////            dd(get_class_methods($file));
-//
-//            $url = $storage->publicUrl($file->path(), $file->visibility());
-//            dd($url);
-//        }
-//        dd(iterator_to_array($files));
-//        $edgeStorageApi = $this->storageService->getEdgeApi($zoneName);
-//        $list = $edgeStorageApi->listFiles(
-//            storageZoneName: $zoneName,
-//            path: $path
-//        );
+
+        //        dd(count($files), strlen($json));
+        //        foreach ($files as $file) {
+        //            $storage->setVisibility($file->path(), 'public');
+        // //            dd(get_class_methods($file));
+        //
+        //            $url = $storage->publicUrl($file->path(), $file->visibility());
+        //            dd($url);
+        //        }
+        //        dd(iterator_to_array($files));
+        //        $edgeStorageApi = $this->storageService->getEdgeApi($zoneName);
+        //        $list = $edgeStorageApi->listFiles(
+        //            storageZoneName: $zoneName,
+        //            path: $path
+        //        );
         return [
             'jsonLength' => strlen($json),
             'data' => json_decode($json, true),
@@ -178,23 +173,17 @@ class StorageController extends AbstractController
     }
 
     /**
-     * @param array $files
-     * @param bool $addMeta
-     * @param \League\Flysystem\Filesystem $storage
-     * @param S3ClientInterface|\Psr\Http\Client\ClientInterface $client
-     * @param string $bucket
-     * @return void
      * @throws \League\Flysystem\FilesystemException
      */
     public function addMetadata(array $files, bool $addMeta, \League\Flysystem\Filesystem $storage, S3ClientInterface|\Psr\Http\Client\ClientInterface $client, string $bucket): void
     {
         /** @var FileAttributes $file */
         foreach ($files as $file) {
-            if ($file['type'] === 'file') {
+            if ('file' === $file['type']) {
                 $options = [
                     'Metadata' => [
                         'x-museado-meta-size' => $file->fileSize(),
-                        'x-museado-random' => rand(0, 100000)
+                        'x-museado-random' => rand(0, 100000),
                     ],
                 ];
                 $copyFile = $file->path();
@@ -207,18 +196,17 @@ class StorageController extends AbstractController
                         options: ['params' => $options]);
                     dump(obj: $obj, data: $obj->toArray(), meta: $obj->get('@metadata'));
                 }
-//                $storage->delete($copyFile);
-//                if (!$storage->has($copyFile)) {
-//                /** @var Result $headers */
-//                $headers = $client->headObject(array(
-//                    "Bucket" => $bucket,
-//                    "Key" => $file->path(),
-//                ));
-//                dump(headers: $headers,
-//                    metadata: $headers->get('Metadata'),
-//                    metadataKeys: $headers->get('@metadata'),
-//                    file: $copyFile);
-
+                //                $storage->delete($copyFile);
+                //                if (!$storage->has($copyFile)) {
+                //                /** @var Result $headers */
+                //                $headers = $client->headObject(array(
+                //                    "Bucket" => $bucket,
+                //                    "Key" => $file->path(),
+                //                ));
+                //                dump(headers: $headers,
+                //                    metadata: $headers->get('Metadata'),
+                //                    metadataKeys: $headers->get('@metadata'),
+                //                    file: $copyFile);
             }
         }
     }

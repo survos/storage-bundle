@@ -6,8 +6,6 @@ namespace Survos\StorageBundle\Repository;
 
 use Doctrine\ORM\EntityRepository;
 use Survos\StorageBundle\Entity\StorageNode;
-use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
-use Doctrine\Persistence\ManagerRegistry;
 
 /**
  * @method StorageNode|null find($id, $lockMode = null, $lockVersion = null)
@@ -17,6 +15,4 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class StorageNodeRepository extends EntityRepository
 {
-
-
 }

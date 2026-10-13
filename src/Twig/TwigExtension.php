@@ -11,8 +11,7 @@ use Twig\TwigFunction;
 class TwigExtension extends AbstractExtension
 {
     public function __construct(
-    )
-    {
+    ) {
     }
 
     public function getFilters(): array

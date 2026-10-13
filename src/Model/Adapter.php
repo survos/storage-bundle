@@ -6,21 +6,13 @@ namespace Survos\StorageBundle\Model;
 
 class Adapter
 {
-
-    /**
-     * @param string $name
-     * @param string $class
-     * @param string|null $rootLocation
-     * @param string|null $bucket
-     */
     public function __construct(
-        private(set) string  $name,
-        private(set) string  $class,
-        private(set) ?string $rootLocation = null,
-        private(set) ?string $bucket = null,
-        private(set) ?string $prefix = null
-    )
-    {
+        public private(set) string $name,
+        public private(set) string $class,
+        public private(set) ?string $rootLocation = null,
+        public private(set) ?string $bucket = null,
+        public private(set) ?string $prefix = null,
+    ) {
     }
 
     /**
@@ -36,16 +28,16 @@ class Adapter
 
             return match (true) {
                 str_contains($class, 'AsyncAwsS3'), str_contains($class, 'AwsS3') => 's3',
-                str_contains($class, 'GoogleCloud')                               => 'gcs',
-                str_contains($class, 'AzureBlob')                                 => 'azure',
+                str_contains($class, 'GoogleCloud') => 'gcs',
+                str_contains($class, 'AzureBlob') => 'azure',
                 // Sftp before Ftp: "SftpAdapter" contains "ftp" case-insensitively, and getting
                 // this order wrong labels every SFTP zone as plain FTP.
                 str_contains($class, 'Sftp'), str_contains($class, 'PhpseclibV3') => 'sftp',
-                str_contains($class, 'Ftp')                                       => 'ftp',
-                str_contains($class, 'ZipArchive')                                => 'zip',
-                str_contains($class, 'InMemory')                                  => 'memory',
-                str_contains($class, 'Local')                                     => 'local',
-                default                                                           => 'unknown',
+                str_contains($class, 'Ftp') => 'ftp',
+                str_contains($class, 'ZipArchive') => 'zip',
+                str_contains($class, 'InMemory') => 'memory',
+                str_contains($class, 'Local') => 'local',
+                default => 'unknown',
             };
         }
     }
@@ -55,12 +47,12 @@ class Adapter
         get {
             return match ($this->type) {
                 's3', 'gcs', 'azure' => 'tabler:cloud',
-                'sftp'               => 'tabler:lock',
-                'ftp'                => 'tabler:server',
-                'zip'                => 'tabler:file-zip',
-                'memory'             => 'tabler:cpu',
-                'local'              => 'tabler:folder',
-                default              => 'tabler:database',
+                'sftp' => 'tabler:lock',
+                'ftp' => 'tabler:server',
+                'zip' => 'tabler:file-zip',
+                'memory' => 'tabler:cpu',
+                'local' => 'tabler:folder',
+                default => 'tabler:database',
             };
         }
     }
@@ -77,14 +69,14 @@ class Adapter
             // Only remote adapters compose bucket + prefix. A LocalFilesystemAdapter sets BOTH
             // rootLocation and its prefixer to the same absolute path, so appending the prefix
             // there duplicates it: "/platform/folio-archive/platform/folio-archive".
-            if ($this->bucket !== null && $this->bucket !== '') {
+            if (null !== $this->bucket && '' !== $this->bucket) {
                 // An empty prefix is common and meaningful: archive.storage declares
                 // prefix: '%env(string:S3_STORAGE_PREFIX)%', which resolves to '' when the var is
                 // unset. Appending it produced "museado/" — a trailing slash implying a directory
                 // that is not there.
                 $prefix = trim((string) $this->prefix, '/');
 
-                return $prefix === '' ? $this->bucket : rtrim($this->bucket, '/') . '/' . $prefix;
+                return '' === $prefix ? $this->bucket : rtrim($this->bucket, '/').'/'.$prefix;
             }
 
             // rootLocation is already the full path for local adapters. The prefix is the
@@ -96,8 +88,9 @@ class Adapter
     public function getAbsolutePath(string $path): string
     {
         // only true if local!  Better is to use the underlying adapter and has
-        $absolutePath =  $this->rootLocation.'/'.$path;
-//        dd($absolutePath, $this->rootLocation, file_exists($absolutePath));
+        $absolutePath = $this->rootLocation.'/'.$path;
+
+        //        dd($absolutePath, $this->rootLocation, file_exists($absolutePath));
         return $absolutePath;
     }
 
@@ -120,5 +113,4 @@ class Adapter
     {
         return $this->bucket;
     }
-
 }

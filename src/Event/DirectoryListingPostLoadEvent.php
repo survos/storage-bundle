@@ -17,5 +17,6 @@ final class DirectoryListingPostLoadEvent
         public readonly int $dirCount,
         public readonly int $fileCount,
         public readonly int $totalChildren = 0,
-    ) {}
+    ) {
+    }
 }

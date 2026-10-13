@@ -4,16 +4,13 @@ declare(strict_types=1);
 
 namespace Survos\StorageBundle\Command;
 
-use Exception;
 use Survos\StorageBundle\Service\StorageService;
 use Symfony\Component\Console\Attribute\Argument;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
-
 
 #[AsCommand('storage:upload', 'upload remote storage files', help: <<<END
 # if local path is within project, mirror the file structure, otherwise pass it as second argument
@@ -27,7 +24,6 @@ remote path is required unless a mirror of local
 END)]
 final class StorageUploadCommand
 {
-
     public function __construct(
         #[Autowire('%kernel.project_dir%')] private string $projectDir,
         private readonly StorageService $storageService,
@@ -35,7 +31,7 @@ final class StorageUploadCommand
     }
 
     /**
-     * @throws Exception
+     * @throws \Exception
      */
     public function __invoke(
         SymfonyStyle $io,
@@ -43,20 +39,22 @@ final class StorageUploadCommand
         #[Argument(description: 'path within zone')] string $remoteDirOrFilename = '',
         #[Option(name: 'zone', description: 'zone name')] ?string $zoneName = null,
         #[Option(name: 'zip', description: 'isZip?')] ?bool $zip = null,
-//        #[Option(description: 'dir')] ?string $relativeDir = './',
+        //        #[Option(description: 'dir')] ?string $relativeDir = './',
     ): int {
-        $io->info(self::class . ' started');
+        $io->info(self::class.' started');
         if (!file_exists($filename)) {
             $io->error("File $filename does not exist");
+
             return Command::FAILURE;
         }
 
-        if(!$zip && is_dir($filename)) {
-            $io->error("Please specify --zip for directories");
+        if (!$zip && is_dir($filename)) {
+            $io->error('Please specify --zip for directories');
+
             return Command::FAILURE;
         }
 
-        if($zip) {
+        if ($zip) {
             $filename = $this->createZip($filename);
         }
 
@@ -68,8 +66,8 @@ final class StorageUploadCommand
             $realPath = realpath($filename);
             if (str_starts_with($realPath, $this->projectDir)) {
                 $remotePath = pathinfo(
-                    str_replace($this->projectDir . '/', '', $realPath), PATHINFO_DIRNAME);
-                if ($remotePath === '.') {
+                    str_replace($this->projectDir.'/', '', $realPath), PATHINFO_DIRNAME);
+                if ('.' === $remotePath) {
                     $remotePath = '';
                 }
             }
@@ -89,38 +87,33 @@ final class StorageUploadCommand
             $remoteFilename,
             storageZoneName: $zoneName,
             body: $content,
-            path: $remotePath . '/'
+            path: $remotePath.'/'
         );
 
-//        $io->info($ret->getStatusCode() . ' ' . $ret->getReasonPhrase());
+        //        $io->info($ret->getStatusCode() . ' ' . $ret->getReasonPhrase());
 
-        $io->success($filename . " has been uploaded to $zoneName/$remotePath$filename" );
+        $io->success($filename." has been uploaded to $zoneName/$remotePath$filename");
 
         // @todo: download dir default, etc.
 
         $io->success('storage:upload finished');
+
         return Command::SUCCESS;
     }
 
-    /**
-     * @param string $filePath
-     * @return string
-     */
-    private function adjustFilePath(string $filePath) :string
+    private function adjustFilePath(string $filePath): string
     {
         // Check if the file path starts with "/"
         if (!str_starts_with($filePath, '/')) {
             // If not, add the current directory path to it
-            $filePath = $this->projectDir . '/' . $filePath;
+            $filePath = $this->projectDir.'/'.$filePath;
         }
 
         return $filePath;
     }
 
     /**
-     * @param string $filename
-     * @return string
-     * @throws Exception
+     * @throws \Exception
      */
     private function createZip(string $filename): string
     {
@@ -132,13 +125,11 @@ final class StorageUploadCommand
             return $this->createZipFile($filename);
         }
 
-        throw new Exception("Not a file or folder!");
+        throw new \Exception('Not a file or folder!');
     }
 
     /**
-     * @param string $filename
-     * @return string
-     * @throws Exception
+     * @throws \Exception
      */
     private function createZipFile(string $filename): string
     {
@@ -147,32 +138,31 @@ final class StorageUploadCommand
         $fullFilePath = $this->adjustFilePath($filename);
         $zipFileName = $this->getZipPath($fullFilePath);
 
-        if ($zip->open($zipFileName, \ZipArchive::CREATE) === TRUE) {
+        if (true === $zip->open($zipFileName, \ZipArchive::CREATE)) {
             $zip->addFile($fullFilePath, basename($fullFilePath)); // Add file to zip
             $zip->close();
+
             return $zipFileName;
         }
 
-        throw new Exception("Failed to create zip file!");
+        throw new \Exception('Failed to create zip file!');
     }
 
     /**
-     * @param string $folder
-     * @return string
-     * @throws Exception
+     * @throws \Exception
      */
     private function createZipFolder(string $folder): string
     {
         $fullFolderPath = $this->adjustFilePath($folder);
 
         $updatedPath = rtrim($fullFolderPath, '/');
-        $zipFileName = explode( '/', $updatedPath);
+        $zipFileName = explode('/', $updatedPath);
 
         $zipFileName = $this->getZipPath($updatedPath.'/'.end($zipFileName));
 
         $zip = new \ZipArchive();
 
-        if ($zip->open($zipFileName, \ZipArchive::CREATE) === TRUE) {
+        if (true === $zip->open($zipFileName, \ZipArchive::CREATE)) {
             // Add folder and its contents recursively
             $folderPath = realpath($fullFolderPath);
 
@@ -193,21 +183,19 @@ final class StorageUploadCommand
             }
 
             $zip->close();
+
             return $zipFileName;
         }
 
-        throw new Exception("Failed to create zip file!");
+        throw new \Exception('Failed to create zip file!');
     }
 
-    /**
-     * @param string $filePath
-     * @return string
-     */
-    private function getZipPath(string $filePath) :string
+    private function getZipPath(string $filePath): string
     {
         if (!str_ends_with($filePath, '.zip')) {
             $filePath .= '.zip';
         }
+
         return $filePath;
     }
 }

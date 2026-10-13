@@ -10,24 +10,19 @@ use League\Flysystem\FilesystemAdapter;
 use Psr\Http\Client\ClientInterface;
 use Survos\StorageBundle\Model\Adapter;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
-use Symfony\Contracts\Cache\CacheInterface;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class StorageService
 {
     /**
      * @param iterable $storageZones <Filesystem[]>
-     * @param array $config
-     * @param array $zoneMap
      */
     public function __construct(
         #[AutowireIterator('flysystem.storage')] private iterable $storageZones, // no key!
-        private array                                    $config = [],
+        private array $config = [],
         private array $zoneMap = [], // maps code to zone index
         /** @var array<string, array<string, mixed>> declared adapter config, keyed by zone code */
-        private array $zoneConfig = []
-    )
-    {
+        private array $zoneConfig = [],
+    ) {
     }
 
     /**
@@ -40,6 +35,7 @@ class StorageService
     {
         $storageZone = $this->getZone($storageZone);
         $adapter = $this->getPrivateProperty($storageZone, 'adapter');
+
         return $adapter;
     }
 
@@ -56,9 +52,10 @@ class StorageService
     public function getZones(): array
     {
         $zones = [];
-        foreach (iterator_to_array($this->storageZones) as $idx=>$flysystem) {
+        foreach (iterator_to_array($this->storageZones) as $idx => $flysystem) {
             $zones[$this->zoneMap[$idx]] = $flysystem;
         }
+
         return $zones;
     }
 
@@ -82,24 +79,21 @@ class StorageService
                 prefix: $config['prefix'] ?? null,
             );
 
-
             $adapters[$code] = $adapter;
         }
+
         return $adapters;
     }
 
     public function getAdapterModel(string $storageZone): Adapter
     {
         return $this->getAdapters()[$storageZone];
-
     }
 
     public function getZone(string $code): Filesystem
     {
         return $this->getZones()[$code];
     }
-
-
 
     /**
      * Called once per flysystem storage by SurvosStorageBundle::process(). $config is the
@@ -114,6 +108,7 @@ class StorageService
         $this->zoneMap[$index] = $code;
         $this->zoneConfig[$code] = $config;
     }
+
     private function getPrivateProperty(mixed $object, string $property): mixed
     {
         $reflection = new \ReflectionClass($object);
@@ -138,14 +133,12 @@ class StorageService
     public function getStorageZones(): iterable
     {
         return $this->storageZones;
-
     }
 
     public function getConfig(): array
     {
         return $this->config;
     }
-
 
     /**
      * Read a file's raw bytes from a zone.
@@ -160,19 +153,18 @@ class StorageService
     /**
      * Write content to a zone. Returns the resulting location + size.
      *
-     * @param string|resource $body content to write
+     * @param string|resource      $body    content to write
      * @param array<string, mixed> $headers Flysystem write config
      *
      * @return array{zone: string, path: string, size: int}
      */
     public function uploadFile(
-        string  $fileName, // the filename on storage
-        mixed   $body, // content to write
+        string $fileName, // the filename on storage
+        mixed $body, // content to write
         ?string $storageZoneName = null,
-        string  $path = '',
-        array   $headers = [],
-    ): array
-    {
+        string $path = '',
+        array $headers = [],
+    ): array {
         $zoneCode = $this->resolveZoneCode($storageZoneName);
         $zone = $this->getZone($zoneCode);
         $full = $this->joinPath($path, $fileName);
@@ -184,7 +176,7 @@ class StorageService
 
     private function joinPath(string $path, string $filename): string
     {
-        return ltrim(rtrim($path, '/') . '/' . $filename, '/');
+        return ltrim(rtrim($path, '/').'/'.$filename, '/');
     }
 
     /**
@@ -192,19 +184,15 @@ class StorageService
      */
     private function resolveZoneCode(?string $code): string
     {
-        if ($code !== null && $code !== '') {
+        if (null !== $code && '' !== $code) {
             return $code;
         }
 
         $zones = $this->getZones();
-        if (\count($zones) === 1) {
+        if (1 === \count($zones)) {
             return (string) array_key_first($zones);
         }
 
-        throw new \InvalidArgumentException(sprintf(
-            'A storage zone is required; %d zones are configured (%s).',
-            \count($zones),
-            implode(', ', array_keys($zones)),
-        ));
+        throw new \InvalidArgumentException(sprintf('A storage zone is required; %d zones are configured (%s).', \count($zones), implode(', ', array_keys($zones))));
     }
 }

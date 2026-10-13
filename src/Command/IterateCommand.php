@@ -44,12 +44,13 @@ final class IterateCommand
         bool $extraMeta = true,
     ): int {
         $zone = $this->resolveZone($io, $zone);
-        if ($zone === null) {
+        if (null === $zone) {
             return Command::FAILURE;
         }
 
         if (!$dispatch && !$jsonl) {
             $io->warning('Pass --dispatch or --jsonl to do something besides validate the zone.');
+
             return Command::SUCCESS;
         }
 
@@ -60,11 +61,12 @@ final class IterateCommand
                 $path,
                 context: [DirectoryListingMessage::CONTEXT_VERBOSITY => $io->getVerbosity()],
             ));
-            $io->success(sprintf('Dispatched DirectoryListingMessage: %s %s', $zone, $path === '' ? '/' : $path));
+            $io->success(sprintf('Dispatched DirectoryListingMessage: %s %s', $zone, '' === $path ? '/' : $path));
         }
 
         if ($jsonl) {
             $out ??= self::defaultJsonlFilename($zone, $path);
+
             return $this->writeJsonl($io, $zone, $path, $out, $extraMeta);
         }
 
@@ -76,10 +78,11 @@ final class IterateCommand
         $slugger = new AsciiSlugger();
         $base = (string) $slugger->slug($zone, '_')->lower();
         $trimmed = trim($path, '/');
-        if ($trimmed !== '') {
-            $base .= '__' . (string) $slugger->slug($trimmed, '_')->lower();
+        if ('' !== $trimmed) {
+            $base .= '__'.(string) $slugger->slug($trimmed, '_')->lower();
         }
-        return $base . '.jsonl';
+
+        return $base.'.jsonl';
     }
 
     private function resolveZone(SymfonyStyle $io, ?string $zone): ?string
@@ -87,25 +90,28 @@ final class IterateCommand
         $zones = $this->storageService->getZones();
         $ids = array_keys($zones);
 
-        if ($zone !== null) {
+        if (null !== $zone) {
             if (!isset($zones[$zone])) {
                 $io->error(sprintf('Unknown zone "%s". Available: %s', $zone, implode(', ', $ids)));
+
                 return null;
             }
+
             return $zone;
         }
 
         $default = $this->storageService->getConfig()['default_zone'] ?? null;
-        if ($default !== null && isset($zones[$default])) {
+        if (null !== $default && isset($zones[$default])) {
             return $default;
         }
 
-        if (count($ids) === 1) {
+        if (1 === count($ids)) {
             return $ids[0];
         }
 
-        if ($ids === []) {
+        if ([] === $ids) {
             $io->error('No storage zones configured.');
+
             return null;
         }
 
@@ -121,7 +127,7 @@ final class IterateCommand
     ): int {
         $fs = $this->storageService->getZone($zone);
 
-        $io->writeln(sprintf('Writing JSONL: %s:%s -> %s', $zone, $path === '' ? '/' : $path, $out));
+        $io->writeln(sprintf('Writing JSONL: %s:%s -> %s', $zone, '' === $path ? '/' : $path, $out));
 
         $writer = JsonlWriter::open($out);
         $seenDirs = [$path => true];
@@ -133,18 +139,18 @@ final class IterateCommand
             'type' => 'dir',
             'path' => $path,
             'zone' => $zone,
-            'id' => self::hashId('DIR:' . $path),
+            'id' => self::hashId('DIR:'.$path),
             'parent_id' => null,
             'root' => true,
         ]);
-        $dirCount++;
+        ++$dirCount;
 
         $emitDir = function (string $dirPath) use (&$seenDirs, &$dirCount, $writer, $zone, &$emitDir): void {
-            if ($dirPath === '' || $dirPath === '.' || isset($seenDirs[$dirPath])) {
+            if ('' === $dirPath || '.' === $dirPath || isset($seenDirs[$dirPath])) {
                 return;
             }
             $parent = \dirname($dirPath);
-            if ($parent !== '.' && $parent !== '/' && $parent !== '') {
+            if ('.' !== $parent && '/' !== $parent && '' !== $parent) {
                 $emitDir($parent);
             }
             $seenDirs[$dirPath] = true;
@@ -152,12 +158,12 @@ final class IterateCommand
                 'type' => 'dir',
                 'path' => $dirPath,
                 'zone' => $zone,
-                'id' => self::hashId('DIR:' . $dirPath),
-                'parent_id' => ($parent !== '.' && $parent !== '' && $parent !== '/')
-                    ? self::hashId('DIR:' . $parent)
+                'id' => self::hashId('DIR:'.$dirPath),
+                'parent_id' => ('.' !== $parent && '' !== $parent && '/' !== $parent)
+                    ? self::hashId('DIR:'.$parent)
                     : null,
             ]);
-            $dirCount++;
+            ++$dirCount;
         };
 
         try {
@@ -174,7 +180,7 @@ final class IterateCommand
 
                 /** @var FileAttributes $attr */
                 $parent = \dirname($p);
-                if ($parent !== '.' && $parent !== '' && $parent !== '/') {
+                if ('.' !== $parent && '' !== $parent && '/' !== $parent) {
                     $emitDir($parent);
                 }
 
@@ -182,9 +188,9 @@ final class IterateCommand
                     'type' => 'file',
                     'path' => $p,
                     'zone' => $zone,
-                    'id' => self::hashId('FILE:' . $p),
-                    'parent_id' => ($parent !== '.' && $parent !== '' && $parent !== '/')
-                        ? self::hashId('DIR:' . $parent)
+                    'id' => self::hashId('FILE:'.$p),
+                    'parent_id' => ('.' !== $parent && '' !== $parent && '/' !== $parent)
+                        ? self::hashId('DIR:'.$parent)
                         : null,
                     'size' => $attr->fileSize(),
                     'last_modified' => $attr->lastModified(),
@@ -193,17 +199,18 @@ final class IterateCommand
                 ];
                 if ($extraMeta) {
                     $extra = $attr->extraMetadata();
-                    if ($extra !== []) {
+                    if ([] !== $extra) {
                         $row['extra'] = $extra;
                     }
                 }
                 $writer->write($row);
-                $fileCount++;
+                ++$fileCount;
                 $totalBytes += (int) ($attr->fileSize() ?? 0);
             }
         } catch (FilesystemException $e) {
             $writer->finish();
             $io->error($e->getMessage());
+
             return Command::FAILURE;
         }
 

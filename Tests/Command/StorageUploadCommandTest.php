@@ -1,14 +1,15 @@
 <?php
+
+declare(strict_types=1);
+
 namespace Command;
 
+use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\Tester\CommandTester;
-use Symfony\Bundle\FrameworkBundle\Console\Application;
-use Survos\StorageBundle\Command\StorageDownloadCommand;
 
 class StorageUploadCommandTest extends KernelTestCase
 {
-
     public function testExecute(): void
     {
         self::bootKernel();
@@ -19,7 +20,7 @@ class StorageUploadCommandTest extends KernelTestCase
         $commandTester->execute([
             'filename' => 'composer.json',
             'remoteDirOrFilename' => 'test',
-            '--zip' => false
+            '--zip' => false,
         ]);
 
         $commandTester->assertCommandIsSuccessful();
@@ -41,7 +42,7 @@ class StorageUploadCommandTest extends KernelTestCase
         $commandTester->execute([
             'filename' => 'bin',
             'remoteDirOrFilename' => 'test',
-            '--zip' => false
+            '--zip' => false,
         ]);
 
         $output = $commandTester->getDisplay();
@@ -58,7 +59,7 @@ class StorageUploadCommandTest extends KernelTestCase
         $commandTester->execute([
             'filename' => 'bin',
             'remoteDirOrFilename' => 'test',
-            '--zip' => true
+            '--zip' => true,
         ]);
 
         $commandTester->assertCommandIsSuccessful();

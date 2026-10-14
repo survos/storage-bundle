@@ -144,7 +144,7 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
             ->addTag('controller.service_arguments')
         ;
 
-        if (class_exists(\Survos\TablerBundle\Event\MenuEvent::class)) {
+        if (class_exists(\Survos\TablerBundle\Menu\AbstractAdminMenuSubscriber::class)) {
             $builder->autowire(Menu\StorageMenuSubscriber::class)
                 ->setAutowired(true)
                 ->setAutoconfigured(true);

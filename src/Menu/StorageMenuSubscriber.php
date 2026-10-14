@@ -6,12 +6,13 @@ namespace Survos\StorageBundle\Menu;
 
 use Doctrine\Persistence\ManagerRegistry;
 use Survos\FieldBundle\Registry\EntityMetaRegistry;
+use Survos\MenuBundle\Attribute\AsMenuListener;
+use Survos\MenuBundle\Event\MenuEvent;
+use Survos\MenuBundle\MenuSlot;
 use Survos\StorageBundle\Service\StorageService;
-use Survos\TablerBundle\Event\MenuEvent;
 use Survos\TablerBundle\Menu\AbstractAdminMenuSubscriber;
 use Survos\TablerBundle\Service\IconService;
 use Survos\TablerBundle\Service\RouteAliasService;
-use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\Routing\RouterInterface;
 
 final class StorageMenuSubscriber extends AbstractAdminMenuSubscriber
@@ -42,7 +43,7 @@ final class StorageMenuSubscriber extends AbstractAdminMenuSubscriber
         return 'database';
     }
 
-    #[AsEventListener(event: MenuEvent::ADMIN_NAVBAR_MENU)]
+    #[AsMenuListener(MenuSlot::ADMIN_NAVBAR_MENU)]
     public function onAdminNavbarMenu(MenuEvent $event): void
     {
         $submenu = $this->addSubmenu($event->getMenu(), $this->getLabel(), $this->getGroupIcon());

@@ -14,16 +14,18 @@ use Survos\StorageBundle\Command\StorageDownloadCommand;
 use Survos\StorageBundle\Command\StorageListCommand;
 use Survos\StorageBundle\Command\StorageUploadCommand;
 use Survos\StorageBundle\Controller\StorageController;
-use Survos\StorageBundle\MessageHandler\DebugMessageHandler;
 use Survos\StorageBundle\Service\StorageService;
 use Survos\StorageBundle\Twig\TwigExtension;
+use Survos\WorkflowMessengerBundle\SurvosWorkflowMessengerBundle;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\Compiler\PassConfig;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Kernel\RequiredBundle;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\DependencyInjection\Reference;
 
+#[RequiredBundle(SurvosWorkflowMessengerBundle::class)]
 // Symfony\Component\HttpKernel\Bundle\Bundle <-- Flex auto-registration marker (see Survos\Kit\AbstractSurvosBundle)
 class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassInterface
 {
@@ -33,6 +35,7 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
 
     public function build(ContainerBuilder $container): void
     {
+        parent::build($container);
         $container->addCompilerPass($this, PassConfig::TYPE_BEFORE_OPTIMIZATION);
         $this->addRouteLoaderCompilerPass($container);
     }
@@ -40,6 +43,7 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
     public function process(ContainerBuilder $container): void
     {
         $storageService = $container->getDefinition('survos_storage.storage_service');
+        $tracking = $container->getParameter('survos_storage.tracking');
 
         // The DECLARED config, straight from the app's flysystem.yaml:
         //
@@ -69,9 +73,22 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
             // while %env()% placeholders are still unresolved, which throws "Region must be a
             // valid RFC host label". The definition and the tag are enough.
             $name = $attributes[0]['storage'] ?? $id;
+            if (($tracking[$name]['track'] ?? false) && !$container->hasDefinition($id.'.survos_tracked_adapter')) {
+                $filesystem = $container->getDefinition($id);
+                $wrapper = $id.'.survos_tracked_adapter';
+                $container->register($wrapper, Tracking\TrackedAdapter::class)->setArguments([
+                    $filesystem->getArgument(0), new Reference(Tracking\StorageJournal::class), $name,
+                ]);
+                $filesystem->setArgument(0, new Reference($wrapper));
+            }
 
             $storageService->addMethodCall('addAdapter', [$id, $loop, $storageConfig[$name] ?? []]);
             ++$loop;
+        }
+        foreach ($tracking as $zone => $options) {
+            if ($options['track'] && !$container->hasDefinition($zone)) {
+                throw new \LogicException('Unknown tracked Flysystem zone: '.$zone);
+            }
         }
     }
 
@@ -122,8 +139,12 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
 
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
+        parent::loadExtension($config, $container, $builder);
         $this->captureRouteConfig($config);
         $this->registerRouteLoader($builder);
+        $builder->setParameter('survos_storage.tracking', $config['storages']);
+        $builder->autowire(Tracking\TrackingConfig::class)->setArgument('$storages', $config['storages']);
+        $builder->autowire(Controller\StorageChangesController::class)->addTag('controller.service_arguments');
 
         // get all bundles https://symfony.com/doc/current/bundles/prepend_extension.html
         $bundles = $builder->getParameter('kernel.bundles');
@@ -144,7 +165,7 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
             ->addTag('controller.service_arguments')
         ;
 
-        if (class_exists(\Survos\TablerBundle\Menu\AbstractAdminMenuSubscriber::class)) {
+        if ($config['routes_enabled'] && in_array(\Survos\TablerBundle\SurvosTablerBundle::class, array_values($bundles), true)) {
             $builder->autowire(Menu\StorageMenuSubscriber::class)
                 ->setAutowired(true)
                 ->setAutoconfigured(true);
@@ -163,14 +184,23 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
                 ->addTag('console.command');
         }
 
-        // Messenger handlers
-        $builder->autowire(MessageHandler\DirectoryListingMessageHandler::class)
-            ->setAutoconfigured(true)
-            ->addTag('messenger.message_handler');
-        $builder->autowire(DebugMessageHandler::class)
-            ->setArgument('$debug', $config['debug'] ?? false)
-            ->setAutoconfigured(true)
-            ->addTag('messenger.message_handler');
+        foreach ([
+            Tracking\StorageJournal::class,
+            Tracking\CachedSidecarReader::class,
+            Tracking\ExternalStorageWrite::class,
+            Tracking\StorageFileLoader::class,
+            Tracking\StorageChangeConsumer::class,
+            EventListener\NodeRefreshListener::class,
+            Service\DirectoryScanner::class,
+            Service\DirectoryScanStarter::class,
+            Workflow\DirectoryWorkflow::class,
+            EventListener\DirectoryScanEvents::class,
+            MessageHandler\DirectoryListingMessageHandler::class,
+        ] as $class) {
+            $builder->autowire($class)->setAutoconfigured(true);
+        }
+
+        $builder->getDefinition(Tracking\StorageChangeConsumer::class)->setArgument('$locks', new Reference($config['tracking_lock_factory']));
 
         //        // twig classes, for storage_url ?
         //        $builder
@@ -186,11 +216,18 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
         $children
             ->booleanNode('enabled')->defaultTrue()->end()
             ->booleanNode('debug')->defaultFalse()->end()
+            ->scalarNode('tracking_lock_factory')->defaultValue('lock.factory')->cannotBeEmpty()->end()
+            ->arrayNode('storages')->useAttributeAsKey('name')->arrayPrototype()->children()
+                ->booleanNode('track')->defaultFalse()->end()
+                ->scalarNode('sidecar_prefix')->defaultValue('o')->cannotBeEmpty()->end()
+                ->arrayNode('content_patterns')->scalarPrototype()->end()->defaultValue([])->end()
+            ->end()->end()->end()
         ->end();
     }
 
     public function prependExtension(ContainerConfigurator $container, ContainerBuilder $builder): void
     {
+        parent::prependExtension($container, $builder);
         $bundles = $builder->getParameter('kernel.bundles');
         $bundleClasses = array_values($bundles);
         // imgproxy is optional, and two unrelated bundles provide it. mezcalito/imgproxy-bundle

@@ -32,6 +32,8 @@ final class DirectoryListingMessage
         /** Total direct children — populated on POST_LOAD messages */
         public ?int $totalChildren = null,
         public array $context = [],
+        /** Explicit override inherited by child jobs; null uses application routing. */
+        public ?string $transport = null,
     ) {
     }
 }

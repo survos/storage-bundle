@@ -103,3 +103,103 @@ bin/console storage:list
 
 
 ```
+
+
+## Live browsing and persisted inventory
+
+Flysystem browsing lists the current backend directly. Doctrine inventory stores
+StorageNode records with parent/child relationships; tree-bundle is required for
+hierarchy support. Browsing a zone does not require populating its inventory.
+
+## Populate through the StorageNode workflow
+
+Flysystem remains authoritative. Doctrine stores a disposable inventory. A
+StorageNode is either a directory or a file; sidecars are ordinary files.
+
+```yaml
+survos_storage:
+    tracking_lock_factory: lock.workflow.factory
+    storages:
+        archive.storage:
+            track: true
+            sidecar_prefix: o
+            content_patterns: ['o/*.json']
+```
+
+```sh
+bin/console storage:populate archive.storage o
+bin/console messenger:consume storage.fetch --concurrency=8
+```
+
+Use a shared workflow lock store and configure the `storage.fetch` transport.
+`--concurrency` needs Symfony Messenger's amphp/parallel support; otherwise run
+multiple normal workers. `sync` must also be configured for explicit `--sync` use.
+
+Persisting a node starts the built-in workflow Kickoff after commit. The initial
+`new` place selects `fetch_directory` for directories or `load_file` for files.
+Each directory transition performs one shallow listing, saves its children, and
+lets their own Kickoff continue the traversal. Each file transition loads metadata
+and, when its path matches `content_patterns`, stores the file bytes in
+`meta[StorageNode::CONTENT]` and their SHA-256 in `meta[StorageNode::CONTENT_SHA256]`.
+File contents are fetched only inside the asynchronous file transition.
+
+Running `storage:populate` again visits existing directories and queues files when
+size/last-modified changed, contents are missing, or their loading is unfinished.
+There is no separate cache rebuild. Delete the disposable StorageNodes and use
+`storage:populate` to populate them again. `--dispatch`/`--recursive` are retained
+for compatibility; `--sync` is only an explicit diagnostic execution scope.
+
+Applications may listen for `StorageNodeDiscoveredEvent` during listing or
+`StorageFileLoadedEvent` after loading, before the executor flushes. No AI-specific
+listener or association to an original object is needed to cache a sidecar.
+Mediary keeps one file per media ID and task, at the existing
+`MediaKeyService::archivePathFromKey($id, $task.'.json', 'o')` path. Its
+`CachedSidecarReader` derives that path and decodes the cached node contents.
+The S3 payload is unchanged. Tasks remain independent because they are different
+files. A cache miss falls back to storage; a cache hit performs no S3 request.
+
+## Tracked writes and changelog
+
+`track: true` wraps the Flysystem adapter so directly injected operators and
+StorageService writes are tracked alike. Successful writes, streams, moves,
+copies, deletes and visibility changes append durable Doctrine journal rows.
+Failed backend writes and reads append nothing. Apply the application migrations
+for `StorageChange` and `StorageJournalHead` before enabling tracking. Journal rows
+have no foreign keys to disposable StorageNodes. Redis is not required.
+
+`storage:changes:consume` forwards journal entries to the same StorageNode workflow
+and marks them dispatched. It never loads files itself. Mediary's Scheduler runs
+this forwarding command every minute. A crash after dispatch can produce a safe
+duplicate invalidation. Workers read the current file, so delayed messages do not
+restore old content. Missing files are marked `meta[StorageNode::EXISTS] = false`
+and their cached contents are removed. Per-node workflow locks serialize updates.
+
+The admin-only `GET /storage/changes?after=0&limit=100` endpoint returns `events`
+and a `next` cursor. Without authorization it returns 403. Sequence allocation is
+serialized through database commit; rows remain available after dispatch and
+clients checkpoint after processing a page. There is no automatic pruning.
+
+Filesystem writes and SQL journal inserts cannot be atomic. Journal failures are
+reported even if the file was saved: retry or explicitly record the successful
+write. Writes bypassing Flysystem require provider notifications or an explicit
+receipt; timestamps can detect changes on subsequent listings, but cannot prove
+content identity. ETags are opaque, not necessarily content hashes.
+
+```php
+$journal->record('archive.storage', $relativeKey, revision: [
+    SidecarCache::ETAG => $etag,
+    SidecarCache::VERSION_ID => $versionId,
+]);
+// Maps confirmed bucket/key receipts through configured zone prefixes:
+$externalStorageWrite->record($bucket, $key, $revision);
+```
+
+`storage:changes:record archive.storage path/to/object` checks existence before
+recording a manual receipt; `--etag` and `--version-id` are optional. Notification
+provenance is saved under `meta.storage_event_revision`, separately from the hash
+of the actual cached contents. Existing AI response provenance is left unchanged.
+
+Mediary records Imagor originals only after its existing HEAD confirms persistence,
+including ETag/version when available. Resize HTTP success alone does not identify
+or confirm a persisted result object; its producer must supply a confirmed key
+before using the same recording API. No guessed resize keys are journaled.

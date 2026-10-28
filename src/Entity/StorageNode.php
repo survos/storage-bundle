@@ -21,6 +21,12 @@ use Symfony\Component\Serializer\Attribute\Groups;
 // )]
 class StorageNode implements \Stringable
 {
+    public const STATUS_NEW = 'new';
+    public const STATUS_FILE_LOADED = 'file_loaded';
+    public const CONTENT = 'content';
+    public const CONTENT_SHA256 = 'content_sha256';
+    public const EXISTS = 'exists';
+
     public const STATUS_NEW_DIR = 'new_dir';
     public const STATUS_NEW_FILE = 'new_file';
     public const STATUS_DIR_LOADED = 'dir_loaded'; // directories and files have been loaded.  All or nothing.
@@ -91,7 +97,7 @@ class StorageNode implements \Stringable
             // no!
             //            $this->storage->addStorage($this);
         }
-        $this->status = $this->isDir ? self::STATUS_NEW_DIR : self::STATUS_NEW_FILE;
+        $this->status = self::STATUS_NEW;
         // unfortunately, these codes are different than the filenames!
         $this->id = self::calcCode($this->storageId, $this->path);
         if ($this->isDir) {

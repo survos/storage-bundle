@@ -8,15 +8,13 @@ use League\Flysystem\DirectoryAttributes;
 use League\Flysystem\FileAttributes;
 use League\Flysystem\FilesystemException;
 use Survos\JsonlBundle\IO\JsonlWriter;
-use Survos\StorageBundle\Entity\StorageNode;
-use Survos\StorageBundle\Message\DirectoryListingMessage;
+use Survos\StorageBundle\Service\DirectoryScanStarter;
 use Survos\StorageBundle\Service\StorageService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Question\ChoiceQuestion;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\String\Slugger\AsciiSlugger;
 
 #[AsCommand('storage:iterate', 'Iterate storage directories; optionally dispatch an event or write JSONL.')]
@@ -24,7 +22,7 @@ final class IterateCommand
 {
     public function __construct(
         private readonly StorageService $storageService,
-        private readonly MessageBusInterface $messageBus,
+        private readonly DirectoryScanStarter $scanner,
     ) {
     }
 
@@ -55,13 +53,8 @@ final class IterateCommand
         }
 
         if ($dispatch) {
-            $this->messageBus->dispatch(new DirectoryListingMessage(
-                $zone,
-                StorageNode::TYPE_DIR,
-                $path,
-                context: [DirectoryListingMessage::CONTEXT_VERBOSITY => $io->getVerbosity()],
-            ));
-            $io->success(sprintf('Dispatched DirectoryListingMessage: %s %s', $zone, '' === $path ? '/' : $path));
+            $this->scanner->start($zone, $path);
+            $io->success('Directory persisted; consume storage.fetch.');
         }
 
         if ($jsonl) {

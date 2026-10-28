@@ -36,7 +36,7 @@ class StorageService
         $storageZone = $this->getZone($storageZone);
         $adapter = $this->getPrivateProperty($storageZone, 'adapter');
 
-        return $adapter;
+        return $adapter instanceof \Survos\StorageBundle\Tracking\TrackedAdapter ? $adapter->inner : $adapter;
     }
 
     public function getClient(FilesystemAdapter $adapter): ClientInterface|S3ClientInterface
@@ -69,7 +69,7 @@ class StorageService
             // The class still comes from the built adapter: it is the one thing the declared
             // config does not name (flysystem.yaml says "aws", not AwsS3V3Adapter::class), and
             // reading ::class off an object is not reflection into internals.
-            $flysystemAdapter = $this->getPrivateProperty($flysystem, 'adapter');
+            $flysystemAdapter = $this->getAdapter($code);
 
             $adapter = new Adapter(
                 $code,

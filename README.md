@@ -203,3 +203,17 @@ Mediary records Imagor originals only after its existing HEAD confirms persisten
 including ETag/version when available. Resize HTTP success alone does not identify
 or confirm a persisted result object; its producer must supply a confirmed key
 before using the same recording API. No guessed resize keys are journaled.
+
+### Browser visibility
+
+`survos_storage.storages` configures tracking (`track`, `sidecar_prefix`,
+`content_patterns`); Flysystem still defines the storage connections. The optional
+`survos_storage.browse_storages` list selects service IDs for the storage overview
+and navbar. Omit it or use `[]` to show all configured stores. It is a presentation
+filter, not access control: underlying services and direct storage routes remain
+available.
+
+```yaml
+survos_storage:
+    browse_storages: [local_vault.storage, platform_dfolio.storage]
+```

@@ -216,6 +216,7 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
         $children
             ->booleanNode('enabled')->defaultTrue()->end()
             ->booleanNode('debug')->defaultFalse()->end()
+            ->arrayNode('browse_storages')->scalarPrototype()->end()->defaultValue([])->end()
             ->scalarNode('tracking_lock_factory')->defaultValue('lock.factory')->cannotBeEmpty()->end()
             ->arrayNode('storages')->useAttributeAsKey('name')->arrayPrototype()->children()
                 ->booleanNode('track')->defaultFalse()->end()

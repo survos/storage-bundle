@@ -49,7 +49,7 @@ final class StorageMenuSubscriber extends AbstractAdminMenuSubscriber
         $submenu = $this->addSubmenu($event->getMenu(), $this->getLabel(), $this->getGroupIcon());
         $this->add($submenu, 'survos_storage_zones', label: 'All zones', icon: 'server');
 
-        foreach (array_keys($this->storageService->getZones()) as $zoneId) {
+        foreach (array_keys($this->storageService->getBrowseAdapters()) as $zoneId) {
             $this->add($submenu, 'survos_storage_zone', ['zoneId' => $zoneId], label: $zoneId, icon: 'folder');
         }
     }

@@ -40,8 +40,8 @@ class StorageController extends AbstractController
         $this->checkSimpleDatatablesInstalled();
 
         return [
-            'adapters' => $this->storageService->getAdapters(),
-            'zones' => $this->storageService->getZones(),
+            'adapters' => $this->storageService->getBrowseAdapters(),
+            'zones' => array_intersect_key($this->storageService->getZones(), $this->storageService->getBrowseAdapters()),
             // symfony/ux-icons is not a requirement of this bundle -- the adapter icon is
             // cosmetic, and forcing the dependency on every consuming app to get it is the wrong
             // trade. Ask Twig instead of guessing; the template falls back to the type label.

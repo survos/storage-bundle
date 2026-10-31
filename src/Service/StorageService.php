@@ -85,6 +85,15 @@ class StorageService
         return $adapters;
     }
 
+    /** Optional presentation allowlist; all underlying storage services remain available. */
+    public function getBrowseAdapters(): array
+    {
+        $visible = $this->config['browse_storages'] ?? [];
+        $adapters = $this->getAdapters();
+
+        return [] === $visible ? $adapters : array_intersect_key($adapters, array_flip($visible));
+    }
+
     public function getAdapterModel(string $storageZone): Adapter
     {
         return $this->getAdapters()[$storageZone];

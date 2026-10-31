@@ -27,13 +27,16 @@ final readonly class PopulateCommand
         #[Option('Compatibility option: new directories always dispatch after persistence')] bool $dispatch = false,
         #[Option('Compatibility option: traversal always discovers child directories')] bool $recursive = false,
         #[Option('Fetch all discovered directories in this process')] bool $sync = false,
+        #[Option('Opt in to per-file existence, size, modification-time checks and configured enrichment')] bool $loadFiles = false,
     ): int {
         $zoneId ??= $io->askQuestion(new ChoiceQuestion('Storage zone', \array_keys($this->storage->getZones())));
-        $node = $this->scanner->start($zoneId, $path, $sync);
+        $node = $this->scanner->start($zoneId, $path, $sync, $loadFiles);
         $io->success($sync
-            ? 'Storage nodes loaded synchronously.'
-            : 'Root queued; consume storage.fetch to list directories and load files.');
-        $io->definitionList(['path' => $node->path], ['status' => $node->status]);
+            ? 'Storage scan completed synchronously.'
+            : 'Root queued; consume storage.fetch to run the requested scan.');
+        $io->definitionList(['path' => $node->path], ['status' => $node->status],
+            ['mode' => $loadFiles ? 'listing + per-file checks/enrichment' : 'listing only (no file reads or checks)'],
+            ['request' => $node->meta[\Survos\StorageBundle\Entity\StorageNode::SCAN_REQUEST]['id']]);
 
         return Command::SUCCESS;
     }

@@ -139,13 +139,13 @@ final class NativeDirectoryTest extends TestCase
         return $count;
     }
 
-    private function assertTree(): void
+    private function assertTree(bool $loaded = false): void
     {
         $this->em->clear();
         $nodes = $this->em->getRepository(StorageNode::class);
         self::assertSame(8, $nodes->count([]));
         self::assertSame(4, $nodes->count(['status' => StorageNode::STATUS_DIR_LOADED]));
-        self::assertSame(4, $nodes->count(['status' => StorageNode::STATUS_FILE_LOADED]));
+        self::assertSame(4, $nodes->count(['status' => $loaded ? StorageNode::STATUS_FILE_LOADED : StorageNode::STATUS_FILE_LISTED]));
         $leaf = $nodes->findOneBy(['path' => 'alpha/nested/b.txt']);
         self::assertSame('alpha/nested', $leaf->parent->path);
         self::assertSame(6, $leaf->fileSize);
@@ -162,7 +162,7 @@ final class NativeDirectoryTest extends TestCase
         $this->em->flush();
         self::assertSame(1, $this->queue()->getMessageCount());
         self::assertSame(DirectoryWorkflow::NAME, $this->queue()->get()[0]->getMessage()->workflow);
-        self::assertSame(8, $this->drain());
+        self::assertSame(4, $this->drain());
         $this->assertTree();
     }
 
@@ -175,6 +175,32 @@ final class NativeDirectoryTest extends TestCase
         self::assertSame(0, $this->queue()->getMessageCount());
         $this->assertTree();
         self::assertSame('fixture', $this->em->getRepository(StorageNode::class)->findOneBy(['path' => 'beta/c.txt'])->meta['application']);
+    }
+
+    public function testFileChecksAreExplicitAndRequestIsRecorded(): void
+    {
+        $root = $this->container()->get(DirectoryScanStarter::class)->start('fixture.storage', '', loadFiles: true);
+        $request = $root->meta[StorageNode::SCAN_REQUEST];
+        self::assertTrue($request[StorageNode::LOAD_FILES]);
+        self::assertSame(8, $this->drain());
+        $this->assertTree(true);
+        $leaf = $this->em->getRepository(StorageNode::class)->findOneBy(['path' => 'beta/c.txt']);
+        self::assertSame($request, $leaf->meta[StorageNode::SCAN_REQUEST]);
+        self::assertTrue($leaf->meta[StorageNode::EXISTS]);
+    }
+
+    public function testCallbackCanOptInOneFile(): void
+    {
+        $this->container()->get('event_dispatcher')->addListener(StorageNodeDiscoveredEvent::class, static function ($event): void {
+            if ('beta/c.txt' === $event->node->path) {
+                $event->node->meta[StorageNode::SCAN_REQUEST][StorageNode::LOAD_FILES] = true;
+            }
+        }, 100);
+        $root = $this->container()->get(DirectoryScanStarter::class)->start('fixture.storage', '');
+        self::assertFalse($root->meta[StorageNode::SCAN_REQUEST][StorageNode::LOAD_FILES]);
+        self::assertSame(5, $this->drain());
+        self::assertSame(1, $this->em->getRepository(StorageNode::class)->count(['status' => StorageNode::STATUS_FILE_LOADED]));
+        self::assertSame(3, $this->em->getRepository(StorageNode::class)->count(['status' => StorageNode::STATUS_FILE_LISTED]));
     }
 
     public function testDuplicateDeliveryIsBlockedWithoutNewFanOut(): void

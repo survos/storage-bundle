@@ -29,6 +29,9 @@ final class NodeRefreshListener implements ResetInterface
     public function discovered(StorageNodeDiscoveredEvent $event): void
     {
         $n = $event->node;
+        if (!$n->isDir && !($n->meta[StorageNode::SCAN_REQUEST][StorageNode::LOAD_FILES] ?? false)) {
+            return;
+        }
         if (!$event->isNew && ($n->isDir || $event->changed || StorageNode::STATUS_FILE_LOADED !== $n->status || ($this->config->cacheContents($n->storageId, $n->path) && !isset($n->meta[StorageNode::CONTENT])))) {
             $this->pending[$n->id] = $n;
         }

@@ -128,26 +128,84 @@ survos_storage:
 
 ```sh
 bin/console storage:populate archive.storage o
-bin/console messenger:consume storage.fetch --concurrency=8
+# Run consumers only when ready to process the queued scan:
+bin/console messenger:consume storage.fetch
 ```
 
 Use a shared workflow lock store and configure the `storage.fetch` transport.
 `--concurrency` needs Symfony Messenger's amphp/parallel support; otherwise run
 multiple normal workers. `sync` must also be configured for explicit `--sync` use.
 
-Persisting a node starts the built-in workflow Kickoff after commit. The initial
-`new` place selects `fetch_directory` for directories or `load_file` for files.
-Each directory transition performs one shallow listing, saves its children, and
-lets their own Kickoff continue the traversal. Each file transition loads metadata
-and, when its path matches `content_patterns`, stores the file bytes in
-`meta[StorageNode::CONTENT]` and their SHA-256 in `meta[StorageNode::CONTENT_SHA256]`.
-File contents are fetched only inside the asynchronous file transition.
+**Scans default to listing-only.** Each directory transition performs one shallow
+Flysystem listing, records the metadata supplied by the adapter, and queues child
+directories recursively. Files finish at `StorageNode::STATUS_FILE_LISTED`
+(`file_listed`); they are not waiting for processing. The scanner does not queue
+per-file existence, size or modification-time requests, download file contents,
+or inspect archive members. `fileCount` counts direct files in a storage directory,
+not files inside ZIPs or bags. Listing metadata can be absent when the adapter
+does not supply it. Application discovery callbacks may explicitly do extra work.
 
-Running `storage:populate` again visits existing directories and queues files when
-size/last-modified changed, contents are missing, or their loading is unfinished.
-There is no separate cache rebuild. Delete the disposable StorageNodes and use
-`storage:populate` to populate them again. `--dispatch`/`--recursive` are retained
-for compatibility; `--sync` is only an explicit diagnostic execution scope.
+To enable per-file checks and configured content caching:
+
+```sh
+bin/console storage:populate archive.storage o --load-files
+```
+
+With `--load-files`, newly discovered files use the `load_file` transition. It checks
+existence and refreshes metadata; paths matching `content_patterns` are read and
+cached in `meta[StorageNode::CONTENT]`, with SHA-256 in
+`meta[StorageNode::CONTENT_SHA256]`. It emits `StorageFileLoadedEvent` for application
+enrichment, then finishes at `file_loaded`. The flag does not itself enable media
+analysis or archive inspection. The same flag works with explicit `--sync`.
+
+On rescans, directories are revisited. In listing-only mode, encountered files
+become `file_listed` without refreshing previously cached contents. With
+`--load-files`, files are queued when listing metadata changed, configured contents
+are missing, or loading is unfinished. Unseen/deleted nodes are not purged by a
+listing. Cached content from earlier scans must not be treated as freshly verified
+merely because a node was listed again.
+
+### Recorded scan request
+
+`DirectoryScanStarter::start($zone, $path, sync: false, loadFiles: false)` records
+`meta[StorageNode::SCAN_REQUEST]` on the root and copies it to discovered children:
+
+- `id`: a new request identifier for each start;
+- `requestedAt`: ISO 8601 request time;
+- `root`: the normalized relative root path;
+- `recursive`: `true` (traversal is always recursive);
+- `loadFiles`: the requested per-file mode.
+
+Each successfully listed directory also records `meta[StorageNode::SCANNED_AT]`.
+The command prints the mode and request ID. These fields describe the latest scan
+observed by each node, not an append-only run history or a whole-tree completion
+timestamp. `sync` is an execution scope, not a persisted scan option. Roots created
+directly without the starter default to listing-only and have no generated request
+ID/time. Avoid overlapping scans of the same tree with different modes: the request
+metadata lives on the shared nodes.
+
+### Compatibility and application callbacks
+
+This changes the default for all consuming applications. Callers that relied on
+population to warm sidecar caches must add `--load-files`, or pass `loadFiles: true`
+to `DirectoryScanStarter::start()`. `content_patterns` alone does not opt a scan in.
+`--dispatch`/`--recursive` remain compatibility options; traversal and dispatch are
+already enabled. `--sync` remains an explicit diagnostic execution scope.
+
+An application can opt in individual files during `StorageNodeDiscoveredEvent` by
+setting `$event->node->meta[StorageNode::SCAN_REQUEST][StorageNode::LOAD_FILES] = true`.
+Use a listener priority above zero so this happens before `NodeRefreshListener`
+decides whether an existing file needs loading. The node then records its effective
+mode; its siblings keep the root's mode.
+
+Directly persisted `new` file nodes and tracked-write journal processing still use
+`load_file`; listing-only is a scan policy, not a prohibition on explicit file loads.
+Already queued file jobs are not cancelled by changing the scan default. Inspect
+and drain or selectively remove old scan jobs before a controlled listing-only run;
+do not purge unrelated messages. Reports must recognize `file_listed` as complete
+for listing-only work. The new request fields use the existing JSON `meta` column;
+they need no new inventory table or schema migration. The separate BIGINT file-size
+mapping requires consuming apps to migrate `storage_node.file_size` if still INTEGER.
 
 Applications may listen for `StorageNodeDiscoveredEvent` during listing or
 `StorageFileLoadedEvent` after loading, before the executor flushes. No AI-specific

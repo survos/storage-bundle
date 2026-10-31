@@ -21,9 +21,9 @@ final readonly class DirectoryScanStarter
     ) {
     }
 
-    public function start(string $zone, string $path, bool $sync = false): StorageNode
+    public function start(string $zone, string $path, bool $sync = false, bool $loadFiles = false): StorageNode
     {
-        $start = function () use ($zone, $path): StorageNode {
+        $start = function () use ($zone, $path, $loadFiles): StorageNode {
             $this->storageService->getZone($zone);
             $path = \trim($path, '/');
             $storage = $this->em->find(Storage::class, Storage::calcCode($zone));
@@ -32,13 +32,17 @@ final readonly class DirectoryScanStarter
                 $this->em->persist($storage);
             }
             $node = $this->em->find(StorageNode::class, StorageNode::calcCode($storage, $path));
+            $request = ['id' => (new \Random\Randomizer())->getBytesFromString('0123456789abcdef', 16), 'requestedAt' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+                'root' => $path, 'recursive' => true, StorageNode::LOAD_FILES => $loadFiles];
             if (null === $node) {
                 $node = new StorageNode($storage, $path, isDir: true);
                 $node->name = '' === $path ? $zone.' root' : \basename($path);
+                $node->meta[StorageNode::SCAN_REQUEST] = $request;
                 $this->em->persist($node);
                 // Kickoff dispatches once, only after the new root is committed.
                 $this->em->flush();
             } else {
+                $node->meta[StorageNode::SCAN_REQUEST] = $request;
                 // Resume a previously saved root whose dispatch failed.
                 $this->executor->execute($this->catalog->get(DirectoryWorkflow::NAME), $node, DirectoryWorkflow::FETCH);
             }

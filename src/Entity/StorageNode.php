@@ -23,9 +23,15 @@ class StorageNode implements \Stringable
 {
     public const STATUS_NEW = 'new';
     public const STATUS_FILE_LOADED = 'file_loaded';
+    public const STATUS_FILE_LISTED = 'file_listed';
+    public const SCAN_REQUEST = 'scanRequest';
+    public const SCANNED_AT = 'scannedAt';
+    public const LOAD_FILES = 'loadFiles';
     public const CONTENT = 'content';
     public const CONTENT_SHA256 = 'content_sha256';
     public const EXISTS = 'exists';
+    public const ETAG = 'ETag';
+    public const STORAGE_CLASS = 'StorageClass';
 
     public const STATUS_NEW_DIR = 'new_dir';
     public const STATUS_NEW_FILE = 'new_file';
@@ -46,9 +52,17 @@ class StorageNode implements \Stringable
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     public ?\DateTimeInterface $lastModified = null;
 
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(type: Types::BIGINT, nullable: true)]
     #[Groups(['file.read'])]
     public ?int $fileSize = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['file.read', 'search'])]
+    public ?string $etag = null;
+
+    #[ORM\Column(length: 64, nullable: true)]
+    #[Groups(['file.read', 'search'])]
+    public ?string $storageClass = null;
 
     #[Groups(['file.read'])]
     public int $listingCount { get => $this->dirCount + $this->fileCount; }

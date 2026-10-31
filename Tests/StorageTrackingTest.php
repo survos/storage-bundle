@@ -111,7 +111,7 @@ final class StorageTrackingTest extends TestCase
         $this->write('observe', ['caption' => 'first']);
         $this->write('ocr', ['text' => 'hello']);
         $c = $this->kernel->getContainer()->get('test.service_container');
-        $c->get(\Survos\StorageBundle\Service\DirectoryScanStarter::class)->start('fixture.storage', '');
+        $c->get(\Survos\StorageBundle\Service\DirectoryScanStarter::class)->start('fixture.storage', '', loadFiles: true);
         self::assertNull($this->cached('observe'));
         self::assertGreaterThan(3, $this->drain());
         self::assertSame(['caption' => 'first'], $this->cached('observe'));
@@ -144,12 +144,12 @@ final class StorageTrackingTest extends TestCase
         $this->write('observe', ['caption' => 'restored']);
         $c = $this->kernel->getContainer()->get('test.service_container');
         $starter = $c->get(\Survos\StorageBundle\Service\DirectoryScanStarter::class);
-        $starter->start('fixture.storage', '');
+        $starter->start('fixture.storage', '', loadFiles: true);
         $this->drain();
         $node = $this->em->find(StorageNode::class, StorageNode::calcCode('fixture.storage', $this->path('observe')));
         unset($node->meta[StorageNode::CONTENT]);
         $this->em->flush();
-        $starter->start('fixture.storage', '');
+        $starter->start('fixture.storage', '', loadFiles: true);
         $this->drain();
         self::assertSame(['caption' => 'restored'], $this->cached('observe'));
     }

@@ -28,6 +28,8 @@ final class DirectoryWorkflow
     public const LOADED = StorageNode::STATUS_DIR_LOADED;
     #[Place('File metadata and optional contents saved')]
     public const FILE_LOADED = StorageNode::STATUS_FILE_LOADED;
+    #[Place('File metadata recorded by directory listing; no per-file checks requested')]
+    public const FILE_LISTED = StorageNode::STATUS_FILE_LISTED;
 
     #[Transition(self::NEW, self::LOADED, 'List direct children', async: true, transport: self::TRANSPORT)]
     #[Transition(self::NEW_DIR, self::LOADED, 'List direct children', async: true, transport: self::TRANSPORT)]
@@ -36,6 +38,7 @@ final class DirectoryWorkflow
     #[Transition(self::NEW, self::FILE_LOADED, 'Load file and optional contents', async: true, transport: self::TRANSPORT)]
     #[Transition(self::NEW_FILE, self::FILE_LOADED, 'Load file and optional contents', async: true, transport: self::TRANSPORT)]
     #[Transition(self::FILE_LOADED, self::FILE_LOADED, 'Load file and optional contents', async: true, transport: self::TRANSPORT)]
+    #[Transition(self::FILE_LISTED, self::FILE_LOADED, 'Load file and optional contents', async: true, transport: self::TRANSPORT)]
     public const LOAD = 'load_file';
 
     #[\Symfony\Component\Workflow\Attribute\AsGuardListener(self::NAME, self::FETCH)]

@@ -46,7 +46,13 @@ final readonly class DirectoryScanner
             $modified = $item->lastModified();
             $child->lastModified = \is_int($modified) ? (new \DateTime())->setTimestamp($modified) : null;
             $child->fileSize = $item->isFile() ? $item->fileSize() : null;
+            // A listing already supplies file metadata. Per-file I/O is explicitly opt-in.
+            $child->meta[StorageNode::SCAN_REQUEST] = $node->meta[StorageNode::SCAN_REQUEST]
+                ?? [StorageNode::LOAD_FILES => false, 'recursive' => true];
             $this->events->dispatch(new StorageNodeDiscoveredEvent($child, $item, $isNew, $changed));
+            if (!$item->isDir() && !($child->meta[StorageNode::SCAN_REQUEST][StorageNode::LOAD_FILES] ?? false)) {
+                $child->status = StorageNode::STATUS_FILE_LISTED;
+            }
             if ($isNew) {
                 $this->em->persist($child);
             }
@@ -58,6 +64,7 @@ final readonly class DirectoryScanner
         }
         $node->dirCount = \count($directories);
         $node->fileCount = $files;
+        $node->meta[StorageNode::SCANNED_AT] = (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
 
         return $directories;
     }

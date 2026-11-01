@@ -275,3 +275,25 @@ available.
 survos_storage:
     browse_storages: [local_vault.storage, platform_dfolio.storage]
 ```
+
+### Friendly storage names
+
+Flysystem service IDs and bucket/prefix configuration remain in `flysystem.yaml`.
+Put app-specific display text in `translations/storage.en.yaml`:
+
+```yaml
+label:
+    'platform_folio.storage': 'Published folios · S3'
+zone:
+    'platform_folio.storage': 'DuckDB .dfolio snapshots and legacy database artifacts.'
+```
+
+`label.<storage-id>` appears in the navbar, storage switcher and listings, falling
+back to the storage ID when untranslated. Existing `zone.<storage-id>` keys are
+descriptions, displayed on both the overview and directory page. Directory views
+provide breadcrumbs, folder-first ordering and retain signed-link mode when
+navigating. These labels do not rename services, buckets, prefixes or objects.
+
+`survos_storage.yaml` controls tracking (`track`), sidecar locations
+(`sidecar_prefix`), scanned content (`content_patterns`) and the tracking lock
+factory. It does not define storage connections or presentation labels.

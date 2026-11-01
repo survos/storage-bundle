@@ -166,6 +166,21 @@ final class NativeDirectoryTest extends TestCase
         $this->assertTree();
     }
 
+    public function testFileSizeSupportsLargeArchives(): void
+    {
+        self::assertSame('bigint', $this->em->getClassMetadata(StorageNode::class)->getTypeOfField('fileSize'));
+        $storage = new Storage('fixture.storage');
+        $node = new StorageNode($storage, 'large.bag.tar');
+        $node->name = 'large.bag.tar';
+        $node->fileSize = 5_074_984_960;
+        $this->em->persist($storage);
+        $this->em->persist($node);
+        $this->em->flush();
+        $id = $node->id;
+        $this->em->clear();
+        self::assertSame(5_074_984_960, $this->em->find(StorageNode::class, $id)->fileSize);
+    }
+
     public function testSyncScopeIncludesAllDescendantsAndMetadata(): void
     {
         $this->container()->get('event_dispatcher')->addListener(StorageNodeDiscoveredEvent::class, static function ($event): void {

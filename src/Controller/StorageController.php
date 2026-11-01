@@ -113,6 +113,13 @@ class StorageController extends AbstractController
         $iterator = $storage->listContents($path, $deep);
 
         $files = iterator_to_array($iterator);
+        usort($files, static fn ($a, $b): int => ($b->isDir() <=> $a->isDir()) ?: strnatcasecmp($a->path(), $b->path()));
+        $breadcrumbs = [];
+        $prefix = '';
+        foreach (array_filter(explode('/', trim($path ?? '', '/')), static fn (string $part): bool => '' !== $part) as $part) {
+            $prefix .= ('' === $prefix ? '' : '/').$part;
+            $breadcrumbs[] = ['label' => $part, 'path' => $prefix];
+        }
         $publicUrls = [];
         $signedUrls = [];
         $expiresAt = new \DateTimeImmutable('+60 minutes');
@@ -159,6 +166,9 @@ class StorageController extends AbstractController
         //            path: $path
         //        );
         return [
+            'zoneAdapters' => $this->storageService->getBrowseAdapters(),
+            'adapter' => $this->storageService->getAdapterModel($zoneId),
+            'breadcrumbs' => $breadcrumbs,
             'jsonLength' => strlen($json),
             'data' => json_decode($json, true),
             'zoneId' => $zoneId,

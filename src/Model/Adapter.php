@@ -12,6 +12,7 @@ class Adapter
         public private(set) ?string $rootLocation = null,
         public private(set) ?string $bucket = null,
         public private(set) ?string $prefix = null,
+        private readonly ?string $endpoint = null,
     ) {
     }
 
@@ -82,6 +83,31 @@ class Adapter
             // rootLocation is already the full path for local adapters. The prefix is the
             // fallback for anything exposing neither (an FTP adapter's root, say).
             return $this->rootLocation ?: $this->prefix;
+        }
+    }
+
+    /** Display only hostname and port: exclude endpoint credentials, paths and queries. */
+    public ?string $host {
+        get {
+            if (!$this->endpoint) {
+                return null;
+            }
+            $parts = parse_url(str_contains($this->endpoint, '://') ? $this->endpoint : '//'.$this->endpoint);
+            if (false === $parts || !isset($parts['host'])) {
+                return null;
+            }
+            $host = $parts['host'];
+            $address = $host.(isset($parts['port']) ? ':'.$parts['port'] : '');
+
+            return str_ends_with($host, '.your-objectstorage.com') ? 'Hetzner · '.$address : $address;
+        }
+    }
+
+    public string $destination {
+        get {
+            $parts = array_filter([$this->location, $this->host], static fn (?string $value): bool => null !== $value && '' !== $value);
+
+            return implode(' · ', $parts);
         }
     }
 

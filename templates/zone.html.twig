@@ -1,7 +1,35 @@
 {% extends "base.html.twig" %}
 
 {% block body %}
-    <h2>Root {{ zoneId }} / {{ path }}</h2>
+    {% set labelKey = 'label.' ~ zoneId %}
+    {% set label = labelKey|trans({}, 'storage') %}
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <h1>{{ label != labelKey ? label : zoneId }}</h1>
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Change storage</button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                {% for id, zoneAdapter in zoneAdapters %}
+                    {% set key = 'label.' ~ id %}{% set name = key|trans({}, 'storage') %}
+                    <li><a class="dropdown-item{{ id == zoneId ? ' active' }}" href="{{ path('survos_storage_zone', {zoneId: id}) }}">{{ name != key ? name : id }}{% if zoneAdapter.destination %} — {{ zoneAdapter.destination }}{% endif %}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% set descriptionKey = 'zone.' ~ zoneId %}
+    {% set description = descriptionKey|trans({}, 'storage') %}
+    {% if description != descriptionKey %}<p class="text-muted mb-1">{{ description }}</p>{% endif %}
+    <p class="small text-muted">{{ adapter.destination }}</p>
+    <nav aria-label="Storage path">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('survos_storage_zones') }}">All storage</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('survos_storage_zone', {zoneId: zoneId, signed: signed}) }}">Root</a></li>
+            {% for crumb in breadcrumbs %}
+                <li class="breadcrumb-item{{ loop.last ? ' active' }}">
+                    {% if loop.last %}{{ crumb.label }}{% else %}<a href="{{ path('survos_storage_zone', {zoneId: zoneId, path: crumb.path, signed: signed}) }}">{{ crumb.label }}</a>{% endif %}
+                </li>
+            {% endfor %}
+        </ol>
+    </nav>
     <div class="mb-2 small">
         {% if signed %}
             <strong>URL mode:</strong> signed (expires in ~60m)
@@ -11,15 +39,23 @@
             <a class="ms-2" href="{{ path('survos_storage_zone', {zoneId: zoneId, path: path, deep: deep, addMeta: addMeta, signed: 1}) }}">Use signed URLs</a>
         {% endif %}
     </div>
-    {{ jsonLength }} for JSON, {{ data|length }} objects (dir/file)
+    <p>{{ files|length }} entries{% if deep %} (including subfolders){% endif %}</p>
 
     {% set columns = [
         'type',
         'path',
         'lastModified',
         'fileSize',
-        'extraMetadata',
     ] %}
+    {% set hasExtraMetadata = false %}
+    {% for file in files %}
+        {% for key, value in file.extraMetadata %}
+            {% if key != 'ETag' and not (key == 'StorageClass' and value == 'STANDARD') %}
+                {% set hasExtraMetadata = true %}
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+    {% if hasExtraMetadata %}{% set columns = columns|merge(['extraMetadata']) %}{% endif %}
     <twig:simple_datatables
             perPage="20"
             :caller="_self"
@@ -86,8 +122,8 @@
                 {% endguard %}
             {% endif %}
 
-            <a href="{{ path(row.type == 'dir' ? 'survos_storage_zone' : 'survos_storage_view', {zoneId: zoneId, path: filePath}) }}">
-                {{ filePath }}
+            <a href="{{ path(row.type == 'dir' ? 'survos_storage_zone' : 'survos_storage_view', {zoneId: zoneId, path: filePath, signed: signed}) }}">
+                {{ deep ? filePath : filePath|split('/')|last }}{{ row.type == 'dir' ? '/' }}
             </a>
             {% if row.type == 'file' and directUrl %}
                 <a href="{{ directUrl }}" target="_blank" rel="noopener noreferrer" class="small ms-2">open</a>
@@ -96,7 +132,11 @@
         </twig:block>
 
         <twig:block name="extraMetadata">
-            {{ row.extraMetadata ? row.extraMetadata|json_encode }}
+            {% for key, value in row.extraMetadata %}
+                {% if key != 'ETag' and not (key == 'StorageClass' and value == 'STANDARD') %}
+                    <div class="small"><span class="text-muted">{{ key }}:</span> {{ value is iterable ? value|json_encode : value }}</div>
+                {% endif %}
+            {% endfor %}
         </twig:block>
 
         <twig:block name="Length">

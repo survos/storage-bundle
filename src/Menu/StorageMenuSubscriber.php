@@ -14,6 +14,7 @@ use Survos\TablerBundle\Menu\AbstractAdminMenuSubscriber;
 use Survos\TablerBundle\Service\IconService;
 use Survos\TablerBundle\Service\RouteAliasService;
 use Symfony\Component\Routing\RouterInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class StorageMenuSubscriber extends AbstractAdminMenuSubscriber
 {
@@ -24,6 +25,7 @@ final class StorageMenuSubscriber extends AbstractAdminMenuSubscriber
         ?IconService $iconService = null,
         ?ManagerRegistry $managerRegistry = null,
         ?EntityMetaRegistry $entityMetaRegistry = null,
+        private readonly ?TranslatorInterface $translator = null,
     ) {
         parent::__construct($router, $routeAliasService, $iconService, $managerRegistry, $entityMetaRegistry);
     }
@@ -49,8 +51,14 @@ final class StorageMenuSubscriber extends AbstractAdminMenuSubscriber
         $submenu = $this->addSubmenu($event->getMenu(), $this->getLabel(), $this->getGroupIcon());
         $this->add($submenu, 'survos_storage_zones', label: 'All zones', icon: 'server');
 
-        foreach (array_keys($this->storageService->getBrowseAdapters()) as $zoneId) {
-            $this->add($submenu, 'survos_storage_zone', ['zoneId' => $zoneId], label: $zoneId, icon: 'folder');
+        foreach ($this->storageService->getBrowseAdapters() as $zoneId => $adapter) {
+            $key = 'label.'.$zoneId;
+            $label = $this->translator?->trans($key, [], 'storage') ?? $key;
+            $label = $label === $key ? $zoneId : $label;
+            if ('' !== $adapter->destination) {
+                $label .= ' — '.$adapter->destination;
+            }
+            $this->add($submenu, 'survos_storage_zone', ['zoneId' => $zoneId], label: $label, icon: 'folder');
         }
     }
 }

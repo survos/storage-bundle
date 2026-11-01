@@ -77,6 +77,7 @@ class StorageService
                 rootLocation: $config['directory'] ?? null,
                 bucket: $config['bucket'] ?? null,
                 prefix: $config['prefix'] ?? null,
+                endpoint: $config['endpoint'] ?? null,
             );
 
             $adapters[$code] = $adapter;
@@ -101,7 +102,7 @@ class StorageService
 
     public function getZone(string $code): Filesystem
     {
-        return $this->getZones()[$code];
+        return $this->getZones()[$code] ?? throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException('Storage is no longer configured: '.$code);
     }
 
     /**

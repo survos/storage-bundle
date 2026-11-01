@@ -92,6 +92,23 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
         }
     }
 
+    private function storageEndpoint(ContainerBuilder $container, array $options): ?string
+    {
+        if (isset($options['endpoint']) || isset($options['host'])) {
+            return $options['endpoint'] ?? $options['host'];
+        }
+        $client = $options['client'] ?? null;
+        if (!is_string($client) || !$container->has($client)) {
+            return null;
+        }
+        $definition = $container->findDefinition($client);
+        $arguments = $definition->getArguments();
+        $configuration = $arguments[0] ?? [];
+
+        // Carry only the endpoint into presentation metadata, never credentials.
+        return is_array($configuration) ? ($configuration['endpoint'] ?? null) : null;
+    }
+
     /**
      * Storage name => ['adapter' => 'aws', 'bucket' => ..., 'prefix' => ..., 'directory' => ...].
      *
@@ -129,6 +146,7 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
                     'bucket' => $options['bucket'] ?? null,
                     'prefix' => $options['prefix'] ?? null,
                     'directory' => $options['directory'] ?? $options['root'] ?? null,
+                    'endpoint' => $this->storageEndpoint($container, $options),
                 ];
                 break;
             }

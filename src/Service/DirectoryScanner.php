@@ -40,7 +40,12 @@ final readonly class DirectoryScanner
             if ($child->isDir !== $item->isDir()) {
                 throw new \LogicException('Storage entry changed between file and directory: '.$item->path());
             }
-            $changed = $child->fileSize !== ($item->isFile() ? $item->fileSize() : null) || $child->lastModified?->getTimestamp() !== $item->lastModified();
+            $extra = $item->extraMetadata();
+            $etag = $extra[StorageNode::ETAG] ?? null;
+            $storageClass = $extra[StorageNode::STORAGE_CLASS] ?? null;
+            $changed = $child->etag !== $etag || $child->storageClass !== $storageClass || $child->fileSize !== ($item->isFile() ? $item->fileSize() : null) || $child->lastModified?->getTimestamp() !== $item->lastModified();
+            $child->etag = $etag;
+            $child->storageClass = $storageClass;
             $child->parent = $node;
             $child->name = \basename($item->path());
             $modified = $item->lastModified();

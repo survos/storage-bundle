@@ -310,7 +310,6 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
                         'type' => 'attribute',
                         'dir' => \dirname(__DIR__).'/src/Entity',
                         'prefix' => 'Survos\\StorageBundle\\Entity',
-                        'alias' => 'Storage',
                     ],
                 ],
             ],

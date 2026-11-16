@@ -20,6 +20,7 @@ class StorageController extends AbstractController
 {
     public function __construct(
         private StorageService $storageService,
+        private \Survos\StorageBundle\Service\BagPreview $preview,
         //        private #[AutowireIterator('flysystem.storage')] iterable $storages,
         private $simpleDatatablesInstalled = false,
     ) {
@@ -67,6 +68,15 @@ class StorageController extends AbstractController
         #[MapQueryParameter] bool $signed = false,
     ): Response|array {
         $service = $this->storageService->getZone($zoneId);
+        $bag = $this->preview->inspect($zoneId, $path);
+        $schema = null;
+        if (str_ends_with($path, '.duckdb') || str_ends_with($path, '.dfolio')) {
+            try {
+                $schema = $this->preview->schema($zoneId, $path);
+            } catch (\Throwable) {
+                $schema = ['error' => 'Unable to inspect this database. Check storage access and DuckDB compatibility.'];
+            }
+        }
         $directUrl = null;
         try {
             $directUrl = $signed
@@ -78,10 +88,12 @@ class StorageController extends AbstractController
 
         $file = [
             'name' => $path,
-            'size' => $service->fileSize($path),
+            'size' => null === $bag ? $service->fileSize($path) : null,
         ];
 
         return [
+            'bag' => $bag,
+            'schema' => $schema,
             'file' => $file,
             'zoneId' => $zoneId,
             'directUrl' => $directUrl,
@@ -166,6 +178,7 @@ class StorageController extends AbstractController
         //            path: $path
         //        );
         return [
+            'bag' => $this->preview->inspect($zoneId, $path ?? ''),
             'zoneAdapters' => $this->storageService->getBrowseAdapters(),
             'adapter' => $this->storageService->getAdapterModel($zoneId),
             'breadcrumbs' => $breadcrumbs,

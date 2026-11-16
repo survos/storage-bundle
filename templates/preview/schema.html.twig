@@ -1,0 +1,14 @@
+<section class="card my-3"><div class="card-body">
+    <h2 class="h4">DuckDB schema</h2>
+    {% if schema.error is defined %}<p>{{ schema.error }}</p>{% else %}
+    <p class="text-muted">Tables, views, and columns. Record data is not loaded.</p>
+    <div class="table-responsive"><table class="table table-sm">
+        <thead><tr><th>Schema</th><th>Table / view</th><th>Kind</th><th>Column</th><th>Type</th><th>Nullable</th></tr></thead>
+        <tbody>{% for column in schema.columns %}<tr>
+            <td>{{ column.schema }}</td><td>{{ column.name }}</td><td>{{ column.type }}</td>
+            <td>{{ column.columnName }}</td><td><code>{{ column.dataType }}</code></td><td>{{ column.nullable }}</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+    {% if schema.truncated %}<p class="text-muted">Showing the first 2,000 columns.</p>{% endif %}
+    {% endif %}
+</div></section>

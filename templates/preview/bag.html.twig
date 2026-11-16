@@ -1,0 +1,23 @@
+<section class="card my-3">
+    <div class="card-body">
+        <h2 class="h4">BagIt manifest</h2>
+        <p class="text-muted">Checksums declared by the bag. Payload integrity has not been checked by this preview.</p>
+        {% for tag in bag.tags %}
+            <details class="mb-3"{% if tag.name starts with 'manifest-' %} open{% endif %}>
+                <summary class="fw-semibold">{{ tag.name }}</summary>
+                <pre class="bg-light border rounded p-3 mt-2" style="max-height: 24rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere;">{{ tag.content }}</pre>
+                {% if tag.truncated %}<p class="text-muted">Preview limited to 1 MB.</p>{% endif %}
+            </details>
+        {% endfor %}
+        <h3 class="h5">Payload files</h3>
+        {% if bag.archive|default(false) %}<p class="text-muted">Payload paths are listed in the manifests above. Extract this TAR bag to query its databases directly.</p>{% endif %}
+        {% if bag.scanLimited|default(false) %}<p class="text-muted">Archive preview stopped after 64 headers.</p>{% endif %}
+        <ul>
+        {% for name, objectPath in bag.payloads %}
+            <li><a href="{{ path('survos_storage_view', {zoneId: zoneId, path: objectPath}) }}">{{ name }}</a>
+                {% if name ends with '.duckdb' or name ends with '.dfolio' %}<span class="text-muted">— view schema</span>{% endif %}</li>
+        {% endfor %}
+        </ul>
+        {% if bag.truncated %}<p class="text-muted">Showing the first 200 payload paths.</p>{% endif %}
+    </div>
+</section>

@@ -177,6 +177,7 @@ class SurvosStorageBundle extends AbstractSurvosBundle implements CompilerPassIn
             ->setAutowired(true)
             ->setPublic(true);
 
+        $builder->autowire(Service\BagPreview::class);
         $builder->autowire(StorageController::class)
             ->setArgument('$simpleDatatablesInstalled', $hasSimpleDatatables)
             ->addTag('container.service_subscriber')

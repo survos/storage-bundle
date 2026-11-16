@@ -39,6 +39,7 @@
             <a class="ms-2" href="{{ path('survos_storage_zone', {zoneId: zoneId, path: path, deep: deep, addMeta: addMeta, signed: 1}) }}">Use signed URLs</a>
         {% endif %}
     </div>
+    {% if bag %}{% include '@SurvosStorage/preview/bag.html.twig' %}{% endif %}
     <p>{{ files|length }} entries{% if deep %} (including subfolders){% endif %}</p>
 
     {% set columns = [
@@ -122,7 +123,7 @@
                 {% endguard %}
             {% endif %}
 
-            <a href="{{ path(row.type == 'dir' ? 'survos_storage_zone' : 'survos_storage_view', {zoneId: zoneId, path: filePath, signed: signed}) }}">
+            <a href="{{ path(row.type == 'dir' and not (filePath ends with '.duckbag') ? 'survos_storage_zone' : 'survos_storage_view', {zoneId: zoneId, path: filePath, signed: signed}) }}">
                 {{ deep ? filePath : filePath|split('/')|last }}{{ row.type == 'dir' ? '/' }}
             </a>
             {% if row.type == 'file' and directUrl %}

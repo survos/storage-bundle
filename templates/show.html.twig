@@ -22,7 +22,9 @@
         {% endif %}
     </div>
 
-    {% if directUrl %}
+    {% if bag %}{% include '@SurvosStorage/preview/bag.html.twig' %}{% endif %}
+    {% if schema %}{% include '@SurvosStorage/preview/schema.html.twig' %}{% endif %}
+    {% if directUrl and not bag and not schema %}
         <div class="mb-2">
             <a href="{{ directUrl }}" target="_blank" rel="noopener noreferrer">Open source object</a>
         </div>
